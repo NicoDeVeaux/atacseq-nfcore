@@ -46,8 +46,8 @@ process BOWTIE2_ALIGN {
     def extension_pattern = /(--output-fmt|-O)+\s+(\S+)/
     def extension_matcher =  (args2 =~ extension_pattern)
     def extension = extension_matcher.getCount() > 0 ? extension_matcher[0][2].toLowerCase() : "bam"
-    def reference = fasta && extension=="cram"  ? "--reference ${fasta}" : ""
-    if (!fasta && extension=="cram") error "Fasta reference is required for CRAM output"
+    def _reference = fasta && extension=="cram"  ? "--_reference ${fasta}" : ""
+    if (!fasta && extension=="cram") error "Fasta _reference is required for CRAM output"
 
     """
     INDEX=`find -L ./ -name "*.rev.1.bt2" | sed "s/\\.rev.1.bt2\$//"`
@@ -61,7 +61,7 @@ process BOWTIE2_ALIGN {
         $unaligned \\
         $args \\
         2> >(tee ${prefix}.bowtie2.log >&2) \\
-        | samtools $samtools_command $args2 --threads $task.cpus ${reference} -o ${prefix}.${extension} -
+        | samtools $samtools_command $args2 --threads $task.cpus ${_reference} -o ${prefix}.${extension} -
 
     if [ -f ${prefix}.unmapped.fastq.1.gz ]; then
         mv ${prefix}.unmapped.fastq.1.gz ${prefix}.unmapped_1.fastq.gz
@@ -90,8 +90,8 @@ process BOWTIE2_ALIGN {
     } else {
         create_unmapped = save_unaligned ? "touch ${prefix}.unmapped_1.fastq.gz && touch ${prefix}.unmapped_2.fastq.gz" : ""
     }
-    def reference = fasta && extension=="cram"  ? "--reference ${fasta}" : ""
-    if (!fasta && extension=="cram") error "Fasta reference is required for CRAM output"
+    def _reference = fasta && extension=="cram"  ? "--_reference ${fasta}" : ""
+    if (!fasta && extension=="cram") error "Fasta _reference is required for CRAM output"
 
     def create_index = ""
     if (extension == "cram") {

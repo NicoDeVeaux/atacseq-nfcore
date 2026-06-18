@@ -20,7 +20,7 @@ process UCSC_BEDGRAPHTOBIGWIG {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def _args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def VERSION = '445' // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
     """

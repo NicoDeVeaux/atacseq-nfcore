@@ -25,13 +25,13 @@ process MACS3_CALLPEAK {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def _args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def args_list = args.tokenize()
+    def args_list = _args.tokenize()
     def format    = meta.single_end ? 'BAM' : 'BAMPE'
     def control   = controlbam ? "--control $controlbam" : ''
     if(args_list.contains('--format')){
-        def id = args_list.findIndexOf{it=='--format'}
+        def id = args_list.findIndexOf{ arg -> arg =='--format'}
         format = args_list[id+1]
         args_list.remove(id+1)
         args_list.remove(id)
@@ -53,7 +53,7 @@ process MACS3_CALLPEAK {
     """
 
     stub:
-    def args = task.ext.args ?: ''
+    def _args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.gappedPeak
