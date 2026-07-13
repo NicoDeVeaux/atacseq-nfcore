@@ -7,7 +7,7 @@
                 "nf-core": {
                     "ataqv/ataqv": {
                         "branch": "master",
-                        "git_sha": "11c7e5b3073845889060c793786bf3177275d62e",
+                        "git_sha": "5909fc046b4b2062e4b4173808aacd2424e0866a",
                         "installed_by": ["modules"]
                     },
                     "ataqv/mkarv": {
@@ -41,11 +41,6 @@
                         "installed_by": ["fastq_align_chromap"]
                     },
                     "chromap/index": {
-                        "branch": "master",
-                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
-                        "installed_by": ["modules"]
-                    },
-                    "custom/getchromsizes": {
                         "branch": "master",
                         "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
                         "installed_by": ["modules"]
@@ -128,6 +123,11 @@
                     "preseq/lcextrap": {
                         "branch": "master",
                         "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": ["modules"]
+                    },
+                    "samtools/faidx": {
+                        "branch": "master",
+                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
                         "installed_by": ["modules"]
                     },
                     "samtools/flagstat": {

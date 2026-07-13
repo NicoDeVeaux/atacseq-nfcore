@@ -5,28 +5,25 @@ include { DEEPTOOLS_ALIGNMENTSIEVE } from '../../modules/nf-core/deeptools/align
 
 workflow BAM_SHIFT_READS {
     take:
-    ch_bam_bai                   // channel: [ val(meta), [ bam ], [bai] ]
-    ch_fasta                     // channel: [ fasta ]
+    ch_bam_index // channel: [ val(meta), [ bam ], [ bai/csi ] ]
+    ch_fasta_fai // channel: [ val(meta), path(fasta), path(fai) ]
 
     main:
-    ch_versions = channel.empty()
 
     //
     // Shift reads
     //
     DEEPTOOLS_ALIGNMENTSIEVE (
-        ch_bam_bai
+        ch_bam_index
     )
-    ch_versions = ch_versions.mix(DEEPTOOLS_ALIGNMENTSIEVE.out.versions)
 
     //
     // Sort reads
     //
     SAMTOOLS_SORT (
         DEEPTOOLS_ALIGNMENTSIEVE.out.bam,
-        ch_fasta
+        ch_fasta_fai.map { meta, fasta, fai -> [ meta, fasta ] }
     )
-    ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions)
 
     //
     // Index reads
@@ -34,7 +31,6 @@ workflow BAM_SHIFT_READS {
     SAMTOOLS_INDEX (
         SAMTOOLS_SORT.out.bam
     )
-    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions)
 
     //
     // Run samtools flagstat
@@ -42,12 +38,9 @@ workflow BAM_SHIFT_READS {
     SAMTOOLS_FLAGSTAT (
         SAMTOOLS_SORT.out.bam.join(SAMTOOLS_INDEX.out.bai, by: [0])
     )
-    ch_versions = ch_versions.mix(SAMTOOLS_FLAGSTAT.out.versions)
 
     emit:
     bam      = SAMTOOLS_SORT.out.bam                // channel: [ val(meta), [ bam ] ]
-    bai      = SAMTOOLS_INDEX.out.bai               // channel: [ val(meta), [ bai ] ]
-    csi      = SAMTOOLS_INDEX.out.csi               // channel: [ val(meta), [ csi ] ]
+    index    = SAMTOOLS_INDEX.out.bai               // channel: [ val(meta), [ bai ] ]
     flagstat = SAMTOOLS_FLAGSTAT.out.flagstat       // channel: [ val(meta), [ flagstat ] ]
-    versions = ch_versions                          // channel: [ versions.yml ]
 }
