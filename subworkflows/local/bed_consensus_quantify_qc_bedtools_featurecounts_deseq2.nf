@@ -71,22 +71,28 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
     //
     ch_consensus_saf = MACS3_CONSENSUS.out.saf.map { _meta, saf -> saf }
 
+    // The merged-library caller joins in a control-BAM column
+    // ([ meta, bam, control ] -> [ meta, bam, control, peak ]) while the
+    // merged-replicate caller does not ([ meta, bams ] -> [ meta, bams, peak ]),
+    // so the joined tuple arity differs between the two instantiations of this
+    // subworkflow. Index positionally (meta = item[0], bam = item[1]) to stay
+    // tolerant of both shapes, as the pre-split implementation did.
     ch_bams
         .join(ch_peaks)
-        .branch { meta, _bam, _peak ->
-            single_end: meta.single_end
-            paired_end: !meta.single_end
+        .branch { item ->
+            single_end: item[0].single_end
+            paired_end: !item[0].single_end
         }
         .set { ch_consensus_bams }
 
     ch_se_batch = ch_consensus_bams.single_end
-        .map { _meta, bam, _peak -> bam }
+        .map { item -> item[1] }
         .collect()
         .filter { bams -> bams }
         .map { bams -> [ [ id: 'consensus_peaks', single_end: true ], bams ] }
 
     ch_pe_batch = ch_consensus_bams.paired_end
-        .map { _meta, bam, _peak -> bam }
+        .map { item -> item[1] }
         .collect()
         .filter { bams -> bams }
         .map { bams -> [ [ id: 'consensus_peaks', single_end: false ], bams ] }
