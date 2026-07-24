@@ -1,0 +1,120 @@
+name: Update snapshots
+
+# Regenerate the pipeline nf-test snapshots on GitHub-hosted x86_64 runners.
+# Runs each pipeline test on its own fresh runner (--update-snapshot), then a
+# final job commits the regenerated *.nf.test.snap files back to the branch.
+# Container image digests + x86_64 arch make the outputs match CI by construction.
+#
+# Must live on the fork's default branch to be dispatchable. Operates on the
+# branch given by the `target_branch` input (default: the module-update PR branch).
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to regenerate snapshots on and commit back to"
+        required: true
+        default: "nf-core-modules-update"
+      nxf_ver:
+        description: "Nextflow version to generate snapshots with"
+        required: true
+        default: "25.10.4"
+
+permissions:
+  contents: write
+
+env:
+  NFT_VER: "0.9.4"
+  NXF_ANSI_LOG: false
+
+jobs:
+  regenerate:
+    name: "regen ${{ matrix.test }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - bowtie2
+          - chromap
+          - controls
+          - default
+          - skip_consensus_peaks
+          - skip_trimming
+          - star
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Setup Nextflow
+        uses: nf-core/setup-nextflow@893c28b667aedeba26e37f296d260ccc5bc4d914 # v3.0.1
+        with:
+          version: ${{ inputs.nxf_ver }}
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.14"
+
+      - name: Install nf-test
+        uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2
+        with:
+          version: ${{ env.NFT_VER }}
+          install-pdiff: true
+
+      - name: Regenerate snapshot
+        run: |
+          nf-test test tests/${{ matrix.test }}.nf.test \
+            --profile=+docker \
+            --update-snapshot \
+            --verbose
+
+      - name: Upload regenerated snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap-${{ matrix.test }}
+          path: tests/${{ matrix.test }}.nf.test.snap
+          if-no-files-found: warn
+
+  commit:
+    name: Commit regenerated snapshots
+    needs: regenerate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Download regenerated snapshots
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/snaps
+          pattern: snap-*
+
+      - name: Apply snapshots
+        run: |
+          find /tmp/snaps -name '*.nf.test.snap' -exec cp -v {} tests/ \;
+          git status --short
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/*.nf.test.snap
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit"
+          else
+            git commit -m "test: regenerate pipeline snapshots on ubuntu-latest [docker]"
+            git push origin "HEAD:${{ inputs.target_branch }}"
+          fi
