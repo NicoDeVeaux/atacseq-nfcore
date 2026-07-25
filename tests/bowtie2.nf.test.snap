@@ -993,12 +993,6 @@
                 "OSMOTIC_STRESS_T15_PE_REP1.mLb.clN_peaks.count_mqc.tsv:md5,a293054721f310bb511bae69d4d541d0",
                 "macs3_annotatePeaks.mLb.clN.summary.txt:md5,b695a9f109656582187b7db01b176b2f",
                 "macs3_annotatePeaks.mLb.clN.summary_mqc.tsv:md5,133040831ed7c47490fb9bfc38aa34cb",
-                "OSMOTIC_STRESS_T0_PE_REP1.mLb.mkD.sorted.metrics.txt:md5,1d2c5acc2f08792fe2efa6fc8b1335d9",
-                "OSMOTIC_STRESS_T0_PE_REP2.mLb.mkD.sorted.metrics.txt:md5,45e1c54ba4131e1c0ceb29f997a3a9ce",
-                "OSMOTIC_STRESS_T100_SE_REP1.mLb.mkD.sorted.metrics.txt:md5,d81d047cc2e95e6471d53a644bc3d01b",
-                "OSMOTIC_STRESS_T100_SE_REP2.mLb.mkD.sorted.metrics.txt:md5,6d24ef93b4721ca14f90eefbf29c68c5",
-                "OSMOTIC_STRESS_T150_SE_REP1.mLb.mkD.sorted.metrics.txt:md5,ddc8fd83ef543f658de1ee8237a29814",
-                "OSMOTIC_STRESS_T15_PE_REP1.mLb.mkD.sorted.metrics.txt:md5,7d20b835bccf458795f61f4206adf4c8",
                 "OSMOTIC_STRESS_T0_PE_REP1.mLb.clN.sorted.bam.flagstat:md5,a36a8c1bf7dbdbf8807858d5578a0612",
                 "OSMOTIC_STRESS_T0_PE_REP1.mLb.clN.sorted.bam.idxstats:md5,bdaa4c2a2264ba3f3ad166d91ce176ef",
                 "OSMOTIC_STRESS_T0_PE_REP1.mLb.mkD.sorted.bam.flagstat:md5,90be54f065cb6ccc358ccb69c56656de",
@@ -1048,8 +1042,6 @@
                 "OSMOTIC_STRESS_T100_SE.mRp.clN_peaks.count_mqc.tsv:md5,be0f2b534a3f40cb5f33c4094ac11243",
                 "macs3_annotatePeaks.mRp.clN.summary.txt:md5,6ed4acc31e584f5976e020adb0c2c8f8",
                 "macs3_annotatePeaks.mRp.clN.summary_mqc.tsv:md5,0c7441ea33d970ec39db6410db33641f",
-                "OSMOTIC_STRESS_T0_PE.mRp.clN.sorted.metrics.txt:md5,386804fd5c9635574815bc1ade45dc51",
-                "OSMOTIC_STRESS_T100_SE.mRp.clN.sorted.metrics.txt:md5,bcef45c467c8a3944d436114de182d31",
                 "OSMOTIC_STRESS_T0_PE.mRp.clN.sorted.bam.flagstat:md5,44795ed8fe210ebfdde5a16690dcabd2",
                 "OSMOTIC_STRESS_T0_PE.mRp.clN.sorted.bam.idxstats:md5,656c6de519c345a2e517ea7cf8ef82ce",
                 "OSMOTIC_STRESS_T100_SE.mRp.clN.sorted.bam.flagstat:md5,27be28a3a20502b2e535adba7d2519c8",
@@ -1121,7 +1113,7 @@
                 "samplesheet.valid.csv:md5,51b046b55592e95949824f21b12c7e49"
             ]
         ],
-        "timestamp": "2026-07-25T08:45:05.289955508",
+        "timestamp": "2026-07-25T13:09:03.455275489",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "25.10.4"
