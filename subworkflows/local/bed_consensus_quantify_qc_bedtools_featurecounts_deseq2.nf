@@ -22,13 +22,12 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
 
     main:
 
-    ch_versions = Channel.empty()
 
     // Create channels: [ meta , [ peaks ] ]
     // where meta = [ id : consensus_peaks ]
     ch_peaks
-        .collect { it[1] }
-        .filter { it.size() > 1 }
+        .collect { item -> item[1] }
+        .filter { item -> item.size() > 1 }
         .map {
             peaks ->
                 [ [ id: 'consensus_peaks' ], peaks ]
@@ -42,12 +41,11 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
         ch_consensus_peaks,
         is_narrow_peak
     )
-    ch_versions = ch_versions.mix(MACS3_CONSENSUS.out.versions)
 
     //
     // Annotate consensus peaks
     //
-    ch_homer_annotatepeaks = Channel.empty()
+    ch_homer_annotatepeaks = channel.empty()
     if (!skip_peak_annotation) {
         HOMER_ANNOTATEPEAKS (
             MACS3_CONSENSUS.out.bed,
@@ -55,21 +53,24 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
             ch_gtf
         )
         ch_homer_annotatepeaks = HOMER_ANNOTATEPEAKS.out.txt
-        ch_versions = ch_versions.mix(HOMER_ANNOTATEPEAKS.out.versions)
     }
 
     // Create channels: [ meta, [ bams ], saf ]
+    // The bam list comes from an unordered channel collect, so its order (and
+    // therefore the featureCounts column order and output file) is otherwise
+    // non-deterministic across runs/hosts. Sort by filename so the consensus
+    // count matrix is reproducible and its snapshot is stable.
     ch_bams
         .join(ch_peaks)
-        .collect { it[1] }
-        .filter { it.size() > 1 }
-        .map { [ it ] }
+        .collect { item -> item[1] }
+        .filter { item -> item.size() > 1 }
+        .map { item -> [ item ] }
         .concat(MACS3_CONSENSUS.out.saf)
         .collect()
-        .filter { it.size() == 3 }
+        .filter { item -> item.size() == 3 }
         .map {
             bam, meta, saf ->
-                [ meta, bam , saf ]
+                [ meta, bam.toSorted { it.name }, saf ]
         }
         .set { ch_bam_saf }
 
@@ -79,20 +80,19 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
     SUBREAD_FEATURECOUNTS (
         ch_bam_saf
     )
-    ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions)
 
     //
     // Generate QC plots with DESeq2
     //
-    ch_deseq2_qc_pdf           = Channel.empty()
-    ch_deseq2_qc_rdata         = Channel.empty()
-    ch_deseq2_qc_rds           = Channel.empty()
-    ch_deseq2_qc_pca_txt       = Channel.empty()
-    ch_deseq2_qc_pca_multiqc   = Channel.empty()
-    ch_deseq2_qc_dists_txt     = Channel.empty()
-    ch_deseq2_qc_dists_multiqc = Channel.empty()
-    ch_deseq2_qc_log           = Channel.empty()
-    ch_deseq2_qc_size_factors  = Channel.empty()
+    ch_deseq2_qc_pdf           = channel.empty()
+    ch_deseq2_qc_rdata         = channel.empty()
+    ch_deseq2_qc_rds           = channel.empty()
+    ch_deseq2_qc_pca_txt       = channel.empty()
+    ch_deseq2_qc_pca_multiqc   = channel.empty()
+    ch_deseq2_qc_dists_txt     = channel.empty()
+    ch_deseq2_qc_dists_multiqc = channel.empty()
+    ch_deseq2_qc_log           = channel.empty()
+    ch_deseq2_qc_size_factors  = channel.empty()
     if (!skip_deseq2_qc) {
         DESEQ2_QC (
             SUBREAD_FEATURECOUNTS.out.counts,
@@ -108,7 +108,6 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
         ch_deseq2_qc_dists_multiqc = DESEQ2_QC.out.dists_multiqc
         ch_deseq2_qc_log           = DESEQ2_QC.out.log
         ch_deseq2_qc_size_factors  = DESEQ2_QC.out.size_factors
-        ch_versions = ch_versions.mix(DESEQ2_QC.out.versions)
     }
 
     emit:
@@ -133,5 +132,4 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
     deseq2_qc_log           = ch_deseq2_qc_log                  // channel: [ txt ]
     deseq2_qc_size_factors  = ch_deseq2_qc_size_factors         // channel: [ txt ]
 
-    versions                = ch_versions                       // channel: [ versions.yml ]
 }

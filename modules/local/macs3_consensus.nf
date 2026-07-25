@@ -17,8 +17,8 @@ process MACS3_CONSENSUS {
     tuple val(meta), path("*.pdf")          , emit: pdf
     tuple val(meta), path("*.boolean.txt")  , emit: boolean_txt
     tuple val(meta), path("*.intersect.txt"), emit: intersect_txt
-    path "versions.yml"                     , emit: versions
-
+    tuple val("${task.process}"), val('python'), eval("python --version | sed 's/Python //g'"), topic: versions
+    tuple val("${task.process}"), val('r-base'), eval("R --version | sed '1!d;s/.*version //;s/ .*//'"), topic: versions
     when:
     task.ext.when == null || task.ext.when
 
@@ -30,12 +30,12 @@ process MACS3_CONSENSUS {
     def collapsecols = is_narrow_peak  ? (['collapse']*9).join(',') : (['collapse']*8).join(',')
     def expandparam  = is_narrow_peak  ? '--is_narrow_peak' : ''
     """
-    sort -T '.' -k1,1 -k2,2n ${peaks.collect{it.toString()}.sort().join(' ')} \\
+    sort -T '.' -k1,1 -k2,2n ${peaks.collect { item -> item.toString() }.sort().join(' ')} \\
         | mergeBed -c $mergecols -o $collapsecols > ${prefix}.txt
 
     macs3_merged_expand.py \\
         ${prefix}.txt \\
-        ${peaks.collect{it.toString()}.sort().join(',').replaceAll("_peaks.${peak_type}","")} \\
+        ${peaks.collect { item -> item.toString() }.sort().join(',').replaceAll("_peaks.${peak_type}","")} \\
         ${prefix}.boolean.txt \\
         $args \\
         $expandparam
@@ -47,10 +47,5 @@ process MACS3_CONSENSUS {
 
     plot_peak_intersect.r -i ${prefix}.boolean.intersect.txt -o ${prefix}.boolean.intersect.plot.pdf
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        python: \$(python --version | sed 's/Python //g')
-        r-base: \$(echo \$(R --version 2>&1) | sed 's/^.*R version //; s/ .*\$//')
-    END_VERSIONS
     """
 }
