@@ -42,6 +42,10 @@ jobs:
           - skip_consensus_peaks
           - skip_trimming
           - star
+          # Present only on branches that add them; the regenerate step skips
+          # matrix entries whose test file is absent on the target branch.
+          - consensus_all_pe
+          - consensus_all_se
     steps:
       - name: Free disk space
         run: |
@@ -72,6 +76,10 @@ jobs:
 
       - name: Regenerate snapshot
         run: |
+          if [ ! -f "tests/${{ matrix.test }}.nf.test" ]; then
+            echo "tests/${{ matrix.test }}.nf.test is not present on ${{ inputs.target_branch }}; skipping."
+            exit 0
+          fi
           nf-test test tests/${{ matrix.test }}.nf.test \
             --profile=+docker \
             --update-snapshot \
@@ -84,6 +92,43 @@ jobs:
           name: snap-${{ matrix.test }}
           path: tests/${{ matrix.test }}.nf.test.snap
           if-no-files-found: warn
+
+  # Local-module unit tests live outside tests/, so they are not part of the
+  # matrix above. Run them as-is (no --update-snapshot) to verify the committed
+  # snapshot rather than overwrite it.
+  verify-local-modules:
+    name: "verify local module tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Setup Nextflow
+        uses: nf-core/setup-nextflow@893c28b667aedeba26e37f296d260ccc5bc4d914 # v3.0.1
+        with:
+          version: ${{ inputs.nxf_ver }}
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.14"
+
+      - name: Install nf-test
+        uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2
+        with:
+          version: ${{ env.NFT_VER }}
+          install-pdiff: true
+
+      - name: Run local module tests
+        run: |
+          shopt -s nullglob
+          tests=(modules/local/tests/*.nf.test)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "No local module tests on ${{ inputs.target_branch }}; skipping."
+            exit 0
+          fi
+          nf-test test "${tests[@]}" --profile=+docker --verbose
 
   commit:
     name: Commit regenerated snapshots
