@@ -85,17 +85,21 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
         }
         .set { ch_consensus_bams }
 
+    // Each batch is assembled from an unordered channel collect, so sort by
+    // filename: the BAM order sets the featureCounts column order, and an
+    // unsorted list makes the count matrix (and its snapshot md5) vary between
+    // runs and hosts.
     ch_se_batch = ch_consensus_bams.single_end
         .map { item -> item[1] }
         .collect()
         .filter { bams -> bams }
-        .map { bams -> [ [ id: 'consensus_peaks', single_end: true ], bams ] }
+        .map { bams -> [ [ id: 'consensus_peaks', single_end: true ], bams.toSorted { it.name } ] }
 
     ch_pe_batch = ch_consensus_bams.paired_end
         .map { item -> item[1] }
         .collect()
         .filter { bams -> bams }
-        .map { bams -> [ [ id: 'consensus_peaks', single_end: false ], bams ] }
+        .map { bams -> [ [ id: 'consensus_peaks', single_end: false ], bams.toSorted { it.name } ] }
 
     ch_featurecounts_input = ch_se_batch
         .mix(ch_pe_batch)
@@ -108,10 +112,12 @@ workflow BED_CONSENSUS_QUANTIFY_QC_BEDTOOLS_FEATURECOUNTS_DESEQ2 {
     //
     // Merge the per-library-type count matrices into a single consensus matrix
     //
+    // Sorted for the same reason: the merge script's column order follows the
+    // order of the per-batch matrices it is handed.
     ch_merged_counts = SUBREAD_FEATURECOUNTS.out.counts
         .map { _meta, counts -> counts }
         .collect()
-        .map { counts -> [ [ id: 'consensus_peaks' ], counts ] }
+        .map { counts -> [ [ id: 'consensus_peaks' ], counts.toSorted { it.name } ] }
 
     FEATURECOUNTS_MERGE (
         ch_merged_counts
