@@ -128,11 +128,19 @@ jobs:
             echo "No local module tests on ${{ inputs.target_branch }}; skipping."
             exit 0
           fi
-          nf-test test "${tests[@]}" --profile=+docker --verbose
+          nf-test test "${tests[@]}" --profile=+docker --update-snapshot --verbose
+
+      - name: Upload regenerated local module snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap-local-modules
+          path: modules/local/tests/*.nf.test.snap
+          if-no-files-found: warn
 
   commit:
     name: Commit regenerated snapshots
-    needs: regenerate
+    needs: [regenerate, verify-local-modules]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -147,16 +155,30 @@ jobs:
           path: /tmp/snaps
           pattern: snap-*
 
+      # Artifacts land in /tmp/snaps/<artifact-name>/. Pipeline snapshots belong in
+      # tests/, local-module snapshots in modules/local/tests/ — so route by artifact
+      # name rather than flattening everything into tests/.
       - name: Apply snapshots
         run: |
-          find /tmp/snaps -name '*.nf.test.snap' -exec cp -v {} tests/ \;
+          shopt -s nullglob
+          for f in /tmp/snaps/snap-*/*.nf.test.snap; do
+            case "$f" in
+              */snap-local-modules/*) dest=modules/local/tests ;;
+              *)                      dest=tests ;;
+            esac
+            cp -v "$f" "$dest/"
+          done
           git status --short
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/*.nf.test.snap
+          shopt -s nullglob
+          snaps=(tests/*.nf.test.snap modules/local/tests/*.nf.test.snap)
+          if [ ${#snaps[@]} -gt 0 ]; then
+            git add "${snaps[@]}"
+          fi
           if git diff --cached --quiet; then
             echo "No snapshot changes to commit"
           else
