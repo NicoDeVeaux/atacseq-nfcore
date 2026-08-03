@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Enhancements & fixes
 
+- Add a pipeline test for `--shift_reads`, which had no coverage: the parameter defaults to `false`, so `BAM_SHIFT_READS` and its `conf/modules.config` selectors never ran in CI.
+- Add a pre-commit check that patched nf-core modules agree with their checked-in test snapshots. `nf-test.config` excludes vendored module tests, so a patch that changes a tool version while the snapshot keeps asserting the upstream one went unnoticed.
 - [[#446]](https://github.com/nf-core/atacseq/pull/446) - Make pipeline code compliant with strict Nextflow v2 syntax parser, with no behaviour change.
 - [[#407]](https://github.com/nf-core/atacseq/pull/407) to add filtering reads according fragment size to help to focus on NFR, MNR, DNR, TNR
 - [[#164]](https://github.com/nf-core/atacseq/issues/164) and partly [[#91]](https://github.com/nf-core/atacseq/issues/91) with code from [[#301]](https://github.com/nf-core/atacseq/pull/301) to address shifting of reads as an option that is turned off by default.

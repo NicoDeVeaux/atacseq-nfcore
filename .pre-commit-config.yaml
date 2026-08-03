@@ -31,3 +31,11 @@ repos:
       - id: nextflow-lint
         files: '\.nf$|nextflow\.config$'
         args: ["-output", "json"]
+  - repo: local
+    hooks:
+      - id: patched-module-snapshots
+        name: Patched nf-core modules agree with their test snapshots
+        entry: tests/bin/check_patched_module_snapshots.py
+        language: python
+        pass_filenames: false
+        files: '^(modules\.json|modules/nf-core/.*)$'
