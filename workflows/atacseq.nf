@@ -7,8 +7,7 @@
 //
 // MODULE: Loaded from modules/local/
 //
-include { IGV     } from '../modules/local/igv'
-include { MULTIQC } from '../modules/local/multiqc'
+include { IGV } from '../modules/local/igv'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -48,6 +47,7 @@ include { ATAQV_MKARV as MERGED_LIBRARY_ATAQV_MKARV                             
 
 include { PICARD_MERGESAMFILES as PICARD_MERGESAMFILES_LIBRARY   } from '../modules/nf-core/picard/mergesamfiles/main'
 include { PICARD_MERGESAMFILES as PICARD_MERGESAMFILES_REPLICATE } from '../modules/nf-core/picard/mergesamfiles/main'
+include { MULTIQC                                                } from '../modules/nf-core/multiqc/main'
 
 //
 // SUBWORKFLOW: Consisting entirely of nf-core/modules
@@ -783,9 +783,7 @@ workflow ATACSEQ {
     def ch_multiqc_report = channel.empty()
 
     if (!params.skip_multiqc) {
-        def ch_multiqc_config                     = channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-        def ch_multiqc_custom_config              = multiqc_config ? channel.fromPath(multiqc_config) : channel.empty()
-        def ch_multiqc_logo                       = multiqc_logo   ? channel.fromPath(multiqc_logo)   : channel.empty()
+        def ch_multiqc_config                     = [file("$projectDir/assets/multiqc_config.yml", checkIfExists: true)] + (multiqc_config ? [file(multiqc_config, checkIfExists: true)] : [])
         def ch_summary_params                     = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
         def ch_workflow_summary                   = channel.value(paramsSummaryMultiqc(ch_summary_params))
         def ch_multiqc_custom_methods_description = multiqc_methods_description ? file(multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
@@ -794,56 +792,55 @@ workflow ATACSEQ {
         ch_multiqc_files                          = ch_multiqc_files.mix(ch_collated_versions)
         ch_multiqc_files                          = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: false))
 
-        MULTIQC (
-            ch_multiqc_files.collect(),
-            ch_multiqc_config.toList(),
-            ch_multiqc_custom_config.toList(),
-            ch_multiqc_logo.toList(),
-
-            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.fastqc_zip.collect { item -> item[1] }.ifEmpty([]),
-            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.trim_zip.collect { item -> item[1] }.ifEmpty([]),
-            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.trim_log.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_samtools_stats.collect { item -> item[1] }.ifEmpty([]),
-            ch_samtools_flagstat.collect { item -> item[1] }.ifEmpty([]),
-            ch_samtools_idxstats.collect { item -> item[1] }.ifEmpty([]),
-
-            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.stats.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.flagstat.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.idxstats.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.metrics.collect { item -> item[1] }.ifEmpty([]),
-
-            MERGED_LIBRARY_FILTER_BAM.out.stats.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_FILTER_BAM.out.flagstat.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_FILTER_BAM.out.idxstats.collect { item -> item[1] }.ifEmpty([]),
-            ch_picardcollectmultiplemetrics_multiqc.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_preseq_multiqc.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_deeptoolsplotprofile_multiqc.collect { item -> item[1] }.ifEmpty([]),
-            ch_deeptoolsplotfingerprint_multiqc.collect { item -> item[1] }.ifEmpty([]),
-
-            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.frip_multiqc.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.peak_count_multiqc.collect { item -> item[1] }.ifEmpty([]),
-            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.plot_homer_annotatepeaks_tsv.collect().ifEmpty([]),
-            ch_featurecounts_library_multiqc.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_markduplicates_replicate_stats.collect { item -> item[1] }.ifEmpty([]),
-            ch_markduplicates_replicate_flagstat.collect { item -> item[1] }.ifEmpty([]),
-            ch_markduplicates_replicate_idxstats.collect { item -> item[1] }.ifEmpty([]),
-            ch_markduplicates_replicate_metrics.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_macs3_frip_replicate_multiqc.collect { item -> item[1] }.ifEmpty([]),
-            ch_macs3_peak_count_replicate_multiqc.collect { item -> item[1] }.ifEmpty([]),
-            ch_macs3_plot_homer_annotatepeaks_replicate_multiqc.collect().ifEmpty([]),
-            ch_featurecounts_replicate_multiqc.collect { item -> item[1] }.ifEmpty([]),
-
-            ch_deseq2_pca_library_multiqc.collect().ifEmpty([]),
-            ch_deseq2_clustering_library_multiqc.collect().ifEmpty([]),
-            ch_deseq2_pca_replicate_multiqc.collect().ifEmpty([]),
-            ch_deseq2_clustering_replicate_multiqc.collect().ifEmpty([])
+        ch_multiqc_files = ch_multiqc_files.mix(
+            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.fastqc_zip.map { item -> item[1] },
+            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.trim_zip.map { item -> item[1] },
+            FASTQ_FASTQC_UMITOOLS_TRIMGALORE.out.trim_log.map { item -> item[1] },
+            ch_samtools_stats.map { item -> item[1] },
+            ch_samtools_flagstat.map { item -> item[1] },
+            ch_samtools_idxstats.map { item -> item[1] },
+            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.stats.map { item -> item[1] },
+            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.flagstat.map { item -> item[1] },
+            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.idxstats.map { item -> item[1] },
+            MERGED_LIBRARY_MARKDUPLICATES_PICARD.out.metrics.map { item -> item[1] },
+            MERGED_LIBRARY_FILTER_BAM.out.stats.map { item -> item[1] },
+            MERGED_LIBRARY_FILTER_BAM.out.flagstat.map { item -> item[1] },
+            MERGED_LIBRARY_FILTER_BAM.out.idxstats.map { item -> item[1] },
+            ch_picardcollectmultiplemetrics_multiqc.map { item -> item[1] },
+            ch_preseq_multiqc.map { item -> item[1] },
+            ch_deeptoolsplotprofile_multiqc.map { item -> item[1] },
+            ch_deeptoolsplotfingerprint_multiqc.map { item -> item[1] },
+            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.frip_multiqc.map { item -> item[1] },
+            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.peak_count_multiqc.map { item -> item[1] },
+            MERGED_LIBRARY_CALL_ANNOTATE_PEAKS.out.plot_homer_annotatepeaks_tsv,
+            ch_featurecounts_library_multiqc.map { item -> item[1] },
+            ch_markduplicates_replicate_stats.map { item -> item[1] },
+            ch_markduplicates_replicate_flagstat.map { item -> item[1] },
+            ch_markduplicates_replicate_idxstats.map { item -> item[1] },
+            ch_markduplicates_replicate_metrics.map { item -> item[1] },
+            ch_macs3_frip_replicate_multiqc.map { item -> item[1] },
+            ch_macs3_peak_count_replicate_multiqc.map { item -> item[1] },
+            ch_macs3_plot_homer_annotatepeaks_replicate_multiqc,
+            ch_featurecounts_replicate_multiqc.map { item -> item[1] },
+            ch_deseq2_pca_library_multiqc,
+            ch_deseq2_clustering_library_multiqc,
+            ch_deseq2_pca_replicate_multiqc,
+            ch_deseq2_clustering_replicate_multiqc
         )
-        ch_multiqc_report = MULTIQC.out.report
+
+        MULTIQC (
+            ch_multiqc_files.flatten().collect().map { files ->
+                [
+                    [id: 'atacseq'],
+                    files,
+                    ch_multiqc_config,
+                    multiqc_logo ? file(multiqc_logo, checkIfExists: true) : [],
+                    [],
+                    []
+                ]
+            }
+        )
+        ch_multiqc_report = MULTIQC.out.report.map { _meta, report -> report }
     }
 
     emit:

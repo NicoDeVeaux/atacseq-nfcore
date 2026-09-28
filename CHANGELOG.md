@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[PR #443](https://github.com/nf-core/atacseq/pull/443)] - Updated pipeline template to [nf-core/tools 4.0.2](https://github.com/nf-core/tools/releases/tag/4.0.2)
 - [[PR #453](https://github.com/nf-core/atacseq/pull/453)] - Updated pipeline template to [nf-core/tools 4.0.3](https://github.com/nf-core/tools/releases/tag/4.0.3)
 - [[PR #454](https://github.com/nf-core/atacseq/pull/454)] - Sort the peak QC plot inputs by file name so that `PLOT_MACS3_QC` and `PLOT_HOMER_ANNOTATEPEAKS` outputs no longer depend on task completion order.
+- Replace the local MultiQC module (pinned to 1.13) with the installed nf-core `multiqc` module, and switch `assets/multiqc_config.yml` `path_filters` to filename patterns since the nf-core module does not preserve input directory layout.
 
 ### Parameters
 
