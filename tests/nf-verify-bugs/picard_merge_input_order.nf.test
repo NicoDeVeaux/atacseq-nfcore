@@ -1,0 +1,48 @@
+nextflow_process {
+
+    name "nf-verify bug: PICARD_MERGESAMFILES orders its inputs by the work directory they came from"
+    script "../../modules/nf-core/picard/mergesamfiles/main.nf"
+    process "PICARD_MERGESAMFILES"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-picard-merge-input-order"
+
+    // nf-verify R8 (R8.natural-sort-of-paths): workflows/atacseq.nf:249 (PICARD_MERGESAMFILES_LIBRARY) and :508
+    // (PICARD_MERGESAMFILES_REPLICATE) collect BAMs in task-completion order, and the module sorts them with
+    // `bams.sort()`. For staged inputs that compares full source paths, i.e. the upstream work directories, whose
+    // hashes change on every fresh run, so MergeSamFiles gets its --INPUTs in a different order from run to run
+    // (measured: semantics/order-results.md in nf-verify, 9-10 distinct orders in 10 fresh runs). The order decides
+    // the merged header's read-group order and ties between equal coordinates, so the merged BAM is not reproducible.
+    // A fix sorts by file name: `bams.sort { it.name }`.
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R8-order-dependent-outputs.md
+    test("--INPUT order follows the BAM file names, not the directories the BAMs were staged from") {
+
+        when {
+            process {
+                // Each run's BAM lives in its own upstream work directory. These directory names sort in the reverse
+                // order of the file names, as the random task hashes of a real run often do.
+                def base = new File("$outputDir", 'upstream')
+                def runs = [ 'WT_REP1_T1': 'f3/a1c9', 'WT_REP1_T2': 'c7/0b2e', 'WT_REP1_T3': '9a/44d1', 'WT_REP1_T4': '2b/e8f0' ]
+                def bams = runs.collect { name, dir ->
+                    def d = new File(base, dir)
+                    d.mkdirs()
+                    def f = new File(d, "${name}.sorted.bam")
+                    f.text = ''
+                    "file('${f.absolutePath}')"
+                }
+                """
+                input[0] = [ [ id: 'WT_REP1' ], [ ${bams.join(', ')} ] ]
+                """
+            }
+        }
+
+        then {
+            def merge = NfVerifyBugs.tasks("${launchDir}/work", /PICARD_MERGESAMFILES/)
+            assert merge.size() == 1 : "expected one merge task, got ${merge*.name}"
+            def argsFile = new File(merge[0].workDir, 'picard.args')
+            assert argsFile.exists() : "picard was not called (put tests/nf-verify-bugs/shims first on PATH without containers)"
+            def args = argsFile.readLines()
+            def inputs = (0..<args.size()).findAll { i -> args[i] == '--INPUT' }.collect { i -> args[i + 1] }
+            assert inputs == inputs.toSorted() : "MergeSamFiles --INPUT order is ${inputs}, not by name ${inputs.toSorted()}"
+        }
+    }
+}

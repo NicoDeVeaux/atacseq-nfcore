@@ -25,6 +25,7 @@ nf-test test --tag nf-verify-bug-single-replicate-control         # one pin
 | CI never runs `--with_control` | `ci_with_control.nf.test` | `ci-with-control` | yes | under `-profile test_controls` the samplesheet is checked without `--with_control`, the controls are peak-called as libraries, and `tests/controls.nf.test` does not select `test_controls` |
 | `prepare_genome.nf` reads `params.bwa_index` instead of its take (latent) | `prepare_genome_bwa_index_param.nf.test` | `prepare-genome-bwa-index-param` | yes | `Argument of file() function cannot be null` |
 | The software-versions YAML lacks the `Workflow:` block | `versions_yaml_workflow_block.nf.test` | `versions-yaml-workflow-block` | yes | `nf_core_atacseq_software_mqc_versions.yml` has process versions only |
+| The Picard merges order their inputs by work directory, not by name, so the merged BAM is not reproducible (R8): `bams.sort()` in `modules/nf-core/picard/mergesamfiles`, used at `workflows/atacseq.nf:249,508` | `picard_merge_input_order.nf.test` (process test, real script, `picard` stand-in) | `picard-merge-input-order` | yes | `--INPUT` order is `T3, T4, T2, T1` for runs `T1..T4` staged from directories that sort in reverse; passes with `bams.sort { it.name }` |
 
 Every pin was also run against throwaway local fixes (not committed) and passed, so each fails because of its bug,
 not because of the test.
@@ -51,3 +52,6 @@ not because of the test.
   scripts: they need `mergeBed`, `Rscript`, `python` and `python3` (present with `-profile docker`/`conda`/`singularity`). Without containers, put
   `tests/nf-verify-bugs/shims` first on `PATH`; the shims stand in for `mergeBed`, `R`, `Rscript` and `python` and
   are never used otherwise.
+- **Picard input order**: the pin checks the `--INPUT` order Picard receives, via a `picard` stand-in in `shims/`. That
+  this changes the merged BAM (read-group order in the header, ties between equal coordinates) follows from
+  MergeSamFiles merging inputs in order; it was not checked with real Picard here. The fix belongs in nf-core/modules.

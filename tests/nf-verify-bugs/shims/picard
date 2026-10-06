@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stand-in for picard (only for running the nf-verify pins without containers): answers --version, and for
+# MergeSamFiles writes its arguments to picard.args and an empty --OUTPUT file.
+for a in "$@"; do [ "$a" = "--version" ] && { echo "Version:3.4.0"; exit 0; }; done
+printf '%s\n' "$@" > picard.args
+out=""; prev=""
+for a in "$@"; do [ "$prev" = "--OUTPUT" ] && out="$a"; prev="$a"; done
+[ -n "$out" ] && : > "$out"
