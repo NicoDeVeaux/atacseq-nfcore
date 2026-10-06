@@ -1,0 +1,42 @@
+nextflow_workflow {
+
+    name "nf-verify bug: consensus featureCounts runs -p for single-end libraries (nf-core/atacseq#464)"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-consensus-featurecounts-paired-flag"
+
+    // nf-verify R1 (meta agreement), proved in Lean: the consensus meta is built as [ id: 'consensus_peaks' ]
+    // (bed_consensus_quantify_qc_bedtools_featurecounts_deseq2.nf:28-35), with no single_end, and the featureCounts
+    // module adds -p when meta.single_end is falsy, so single-end libraries are counted as paired fragments.
+    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/rules/R1-meta-agreement.md
+    test("consensus featureCounts gets no -p when every library is single-end") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir               = "$outputDir"
+                skip_consensus_peaks = false
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/single_end.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            // -stub runs the stub, not the featureCounts command, so rebuild the paired-end flag the way
+            // modules/nf-core/subread/featurecounts/main.nf does: from meta.single_end and ext.args.
+            def counts = NfVerifyBugs.tasks("${launchDir}/work", /CONSENSUS_PEAKS:SUBREAD_FEATURECOUNTS/)
+            def paired = counts.findAll { t -> !t.meta.single_end || t.ext_args.tokenize().contains('-p') }
+            assertAll(
+                { assert workflow.success },
+                { assert counts.size() == 2 : "consensus featureCounts tasks: ${counts*.name}" },
+                { assert paired.isEmpty() : "featureCounts would run -p: ${paired.collect { t -> "${t.name} meta=${t.meta} args='${t.ext_args}'" }}" }
+            )
+        }
+    }
+}

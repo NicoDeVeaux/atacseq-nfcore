@@ -1,0 +1,51 @@
+nextflow_workflow {
+
+    name "nf-verify bug: PREPARE_GENOME reads params.bwa_index instead of its bwa_index input"
+    script "../../subworkflows/local/prepare_genome.nf"
+    workflow "PREPARE_GENOME"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-prepare-genome-bwa-index-param"
+
+    // nf-verify history replay (1e48c3e): subworkflows/local/prepare_genome.nf:165 calls file(params.bwa_index) where it
+    // should use its bwa_index take. main.nf passes params.bwa_index, so the pipeline works; any other caller that
+    // passes an index without setting the param gets "Argument of file() function cannot be null". Latent.
+    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/bugs-found.md
+    test("the bwa_index input is used when params.bwa_index is not set") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                def ref = new File("$outputDir", 'ref')
+                new File(ref, 'bwa').mkdirs()
+                [ 'genome.fa': '>chr1\nACGT\n', 'genes.gtf': '', 'genes.bed': '', 'tss.bed': '', 'bwa/genome.fa.bwt': '' ].each { name, text -> new File(ref, name).text = text }
+                """
+                input[0]  = null
+                input[1]  = [:]
+                input[2]  = 'bwa'
+                input[3]  = '${ref}/genome.fa'
+                input[4]  = '${ref}/genes.gtf'
+                input[5]  = null
+                input[6]  = null
+                input[7]  = '${ref}/genes.bed'
+                input[8]  = '${ref}/tss.bed'
+                input[9]  = 'MT'
+                input[10] = false
+                input[11] = '${ref}/bwa'
+                input[12] = null
+                input[13] = null
+                input[14] = null
+                input[15] = 1000
+                input[16] = 50
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.bwa_index.size() == 1 && workflow.out.bwa_index[0][1].toString().endsWith('/ref/bwa') : "bwa_index emitted ${workflow.out.bwa_index}" }
+            )
+        }
+    }
+}

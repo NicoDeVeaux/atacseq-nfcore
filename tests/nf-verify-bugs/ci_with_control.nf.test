@@ -1,0 +1,44 @@
+nextflow_workflow {
+
+    name "nf-verify bug: CI never runs --with_control"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    profile "test_controls"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-ci-with-control"
+
+    // nf-verify audit: conf/test_controls.config never sets with_control = true, so the control columns of its
+    // samplesheet are ignored and the controls are peak-called as ordinary libraries; and tests/controls.nf.test runs
+    // the nf-test.config default profile (test), not test_controls. No CI job exercises the --with_control code.
+    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/findings.md#findings
+    test("-profile test_controls uses the samplesheet's controls, and the controls nf-test runs that profile") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir = "$outputDir"
+            }
+            workflow {
+                // Local copy of the profile's input (test-datasets atacseq/samplesheet/v2.1/samplesheet_test_controls.csv)
+                // with placeholder FastQs, so the stub run needs no downloads.
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/test_controls.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def check = NfVerifyBugs.tasks("${launchDir}/work", /SAMPLESHEET_CHECK/)
+            def macs3 = NfVerifyBugs.tasks("${launchDir}/work", /MERGED_LIBRARY_CALL_ANNOTATE_PEAKS:MACS3_CALLPEAK/)
+            def controlsTest = new File("${baseDir}/tests/controls.nf.test").text
+            assertAll(
+                { assert workflow.success },
+                { assert check.size() == 1 && new File(check[0].workDir, '.command.sh').text.contains('--with_control') : "samplesheet checked without --with_control" },
+                { assert macs3.size() > 0 && macs3.every { t -> t.meta.id.startsWith('SPT5_T') && t.inputs.any { f -> f.startsWith('SPT5_INPUT') } } : "library MACS3 calls: ${macs3.collect { t -> "${t.meta.id} <- ${t.inputs}" }}" },
+                { assert controlsTest =~ /(?m)^\s*(profile|options)\s+["'][^"']*test_controls/ : "tests/controls.nf.test does not run -profile test_controls" }
+            )
+        }
+    }
+}

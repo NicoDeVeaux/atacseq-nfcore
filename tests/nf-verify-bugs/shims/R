@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Stand-in for R (only for running the nf-verify pins without containers).
+echo "R version 0.0.0 (nf-verify shim)"

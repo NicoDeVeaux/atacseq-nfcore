@@ -1,0 +1,41 @@
+nextflow_workflow {
+
+    name "nf-verify bug: replicates naming different controls get a scheduling-dependent merged control"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-replicates-different-controls"
+
+    // nf-verify R3 (arrival order): workflows/atacseq.nf:498-515 groups replicates and keeps metas[0], so the merged
+    // replicate's control is whichever replicate's meta arrived first. WT_REP1 names INPUT_A, WT_REP2 names INPUT_B:
+    // the merged WT is peak-called against INPUT_A or INPUT_B depending on scheduling, without a warning.
+    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/rules/R3-arrival-order.md
+    test("the merged replicate is not silently peak-called against one replicate's control") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir       = "$outputDir"
+                with_control = true
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/replicates_different_controls.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def rejected = NfVerifyBugs.rejected(workflow.success, workflow.stdout + workflow.stderr, /(?i)control/)
+            def picked = NfVerifyBugs.tasks("${launchDir}/work", /MERGED_REPLICATE_CALL_ANNOTATE_PEAKS:MACS3_CALLPEAK/)
+                .findAll { t -> t.meta.id == 'WT' }
+            assertAll(
+                // The nf-verify fix rejects the samplesheet; any fix must at least not pick one control by arrival order.
+                { assert workflow.success || rejected : "run failed for another reason; see the Nextflow output" },
+                { assert picked.isEmpty() : "merged WT peak-called against control ${picked*.meta*.control} (inputs ${picked*.inputs})" }
+            )
+        }
+    }
+}

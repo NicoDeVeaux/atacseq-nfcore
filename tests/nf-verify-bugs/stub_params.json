@@ -1,0 +1,15 @@
+{
+    "skip_fastqc": true,
+    "skip_trimming": true,
+    "skip_picard_metrics": true,
+    "skip_plot_profile": true,
+    "skip_plot_fingerprint": true,
+    "skip_ataqv": true,
+    "skip_igv": true,
+    "skip_multiqc": true,
+    "skip_peak_qc": true,
+    "skip_peak_annotation": true,
+    "skip_deseq2_qc": true,
+    "skip_consensus_peaks": true,
+    "skip_merged_replicate_bigwig": true
+}

@@ -1,0 +1,37 @@
+nextflow_workflow {
+
+    name "nf-verify bug: the software-versions YAML lacks the Workflow block"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-versions-yaml-workflow-block"
+
+    // nf-verify history replay (bcfb1ac): since #448 moved versions to the topic channel, workflows/atacseq.nf:668-682
+    // collates only process versions; softwareVersionsToYAML(), which appended workflowVersionToYAML(), was dropped,
+    // so nf_core_atacseq_software_mqc_versions.yml (and MultiQC's versions table) has no pipeline or Nextflow version.
+    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/bugs-found.md
+    test("nf_core_atacseq_software_mqc_versions.yml records the pipeline and Nextflow versions") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir = "$outputDir"
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/single_end.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def versions = new File("$outputDir/pipeline_info/nf_core_atacseq_software_mqc_versions.yml").text
+            assertAll(
+                { assert workflow.success },
+                { assert versions =~ /(?m)^Workflow:\n\s+nf-core\/atacseq: \S+\n\s+Nextflow: \S+/ : "no Workflow block in:\n${versions}" }
+            )
+        }
+    }
+}
