@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify R2 (silent drops): workflows/atacseq.nf:366-371 offers only libraries without a control as controls.
     // INPUT_A names OTHER as its control and is TREATED_A's control, so the combine at :378 finds no partner for
     // TREATED_A, which silently gets no peak calls. bin/check_samplesheet.py accepts the samplesheet.
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/rules/R2-silent-drops.md
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R2-silent-drops.md
     test("treatments of a control that has its own control are peak-called, or the samplesheet is rejected") {
 
         options "-stub"

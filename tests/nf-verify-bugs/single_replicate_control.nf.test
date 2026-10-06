@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify R2 (silent drops): workflows/atacseq.nf:509-514 keeps only samples with >1 replicate for the
     // replicate merge, so a control with one replicate never gets a merged BAM and the combine at :578 drops
     // every treatment that names it. assets/samplesheet_with_control.csv has this shape (INPUT_A, 1 replicate).
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/rules/R2-silent-drops.md
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R2-silent-drops.md
     test("merged-replicate MACS3 runs for each treatment of a single-replicate control") {
 
         options "-stub"

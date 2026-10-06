@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify audit: with --shift_reads, the merged-library consensus counts the shifted, 0-120 bp filtered BAMs
     // (workflows/atacseq.nf:325-335, 436-438), but the merged-replicate consensus counts ch_merged_library_replicate_bam,
     // built from the unshifted MERGED_LIBRARY_FILTER_BAM output (:498-515, 615-617).
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/findings.md#findings
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/findings.md#findings
     test("both consensus featureCounts runs count the same library BAMs under --shift_reads") {
 
         options "-stub"

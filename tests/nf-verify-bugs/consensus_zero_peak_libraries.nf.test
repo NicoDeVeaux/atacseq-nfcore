@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify R2 (silent drops): bam_peaks_call_qc_annotate_macs3_homer.nf:41-48 drops empty peak files, and
     // bed_consensus_quantify_qc_bedtools_featurecounts_deseq2.nf:63-64 inner-joins the BAMs with those peaks, so a
     // library with 0 peaks is missing from the featureCounts matrix (and DESeq2 QC) instead of counting 0 reads in peaks.
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/rules/R2-silent-drops.md
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R2-silent-drops.md
     test("consensus featureCounts counts every library, including one with zero peaks") {
 
         options "-stub"

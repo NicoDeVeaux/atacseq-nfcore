@@ -9,7 +9,7 @@ nextflow_workflow {
     // nf-verify history replay (1e48c3e): subworkflows/local/prepare_genome.nf:165 calls file(params.bwa_index) where it
     // should use its bwa_index take. main.nf passes params.bwa_index, so the pipeline works; any other caller that
     // passes an index without setting the param gets "Argument of file() function cannot be null". Latent.
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/bugs-found.md
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/bugs-found.md
     test("the bwa_index input is used when params.bwa_index is not set") {
 
         options "-stub"

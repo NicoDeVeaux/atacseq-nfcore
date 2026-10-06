@@ -3,8 +3,8 @@
 Each test in `tests/nf-verify-bugs/` asserts the **correct** behaviour for one bug that
 [nf-verify](https://github.com/seqeralabs/nf-verify) found in this pipeline, so it **fails on `dev` today** and passes
 once the bug is fixed. All are tagged `nf-verify-bug` plus a per-bug tag. Details:
-[bugs-found.md](https://github.com/seqeralabs/nf-verify/blob/integration/docs/bugs-found.md),
-[findings.md](https://github.com/seqeralabs/nf-verify/blob/integration/docs/findings.md).
+[bugs-found.md](https://github.com/seqeralabs/nf-verify/blob/main/docs/bugs-found.md),
+[findings.md](https://github.com/seqeralabs/nf-verify/blob/main/docs/findings.md).
 
 ```bash
 nf-test test --tag nf-verify-bug                                  # all pins

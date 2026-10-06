@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify R1 (meta agreement): S_REP1 has two runs naming INPUT_REP1 and INPUT_REP2. bin/check_samplesheet.py
     // accepts this; the library merge at workflows/atacseq.nf:241-254 groups by the whole meta, so control splits the
     // runs into two library items that share the id S_REP1 and overwrite each other's published outputs.
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/findings.md#findings
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/findings.md#findings
     test("one library is merged per replicate, whatever its runs name as control") {
 
         options "-stub"

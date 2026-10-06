@@ -10,7 +10,7 @@ nextflow_workflow {
     // nf-verify R1 (meta agreement), proved in Lean: neither bin/check_samplesheet.py nor workflows/atacseq.nf:365-381
     // compares single_end of a treatment and its control, and MACS3 reads both with the treatment's --format
     // (BAM vs BAMPE). assets/samplesheet_with_control.csv pairs single-end TREATED_A with paired-end INPUT_A.
-    // https://github.com/seqeralabs/nf-verify/blob/integration/docs/findings.md#findings
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/findings.md#findings
     test("a single-end treatment is not peak-called against a paired-end control") {
 
         options "-stub"
