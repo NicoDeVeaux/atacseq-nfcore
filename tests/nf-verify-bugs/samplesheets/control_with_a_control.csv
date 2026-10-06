@@ -1,0 +1,7 @@
+sample,fastq_1,fastq_2,replicate,control,control_replicate
+OTHER,o1_R1.fastq.gz,o1_R2.fastq.gz,1,,
+OTHER,o2_R1.fastq.gz,o2_R2.fastq.gz,2,,
+INPUT_A,i1_R1.fastq.gz,i1_R2.fastq.gz,1,OTHER,1
+INPUT_A,i2_R1.fastq.gz,i2_R2.fastq.gz,2,OTHER,2
+TREATED_A,t1_R1.fastq.gz,t1_R2.fastq.gz,1,INPUT_A,1
+TREATED_A,t2_R1.fastq.gz,t2_R2.fastq.gz,2,INPUT_A,2

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Stand-in for bedtools mergeBed (only for running the nf-verify pins without containers):
+# merges overlapping intervals of sorted BED on stdin and collapses the columns given with -c.
+cols=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -c) cols="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+awk -v FS='\t' -v OFS='\t' -v cols="$cols" '
+    function flush() {
+        if (chr == "") return
+        line = chr OFS s OFS e
+        for (i = 1; i <= n; i++) line = line OFS acc[i]
+        print line
+    }
+    BEGIN { n = split(cols, c, ",") }
+    {
+        if ($1 != chr || $2 > e) {
+            flush(); chr = $1; s = $2; e = $3
+            for (i = 1; i <= n; i++) acc[i] = $(c[i])
+        } else {
+            if ($3 > e) e = $3
+            for (i = 1; i <= n; i++) acc[i] = acc[i] "," $(c[i])
+        }
+    }
+    END { flush() }
+'

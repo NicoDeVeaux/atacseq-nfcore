@@ -1,0 +1,5 @@
+sample,fastq_1,fastq_2,replicate
+WT,WT_REP1_R1.fastq.gz,,1
+WT,WT_REP2_R1.fastq.gz,,2
+KO,KO_REP1_R1.fastq.gz,,1
+KO,KO_REP2_R1.fastq.gz,,2

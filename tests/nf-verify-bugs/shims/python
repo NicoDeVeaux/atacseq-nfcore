@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Stand-in for python (only for running the nf-verify pins without containers).
+exec python3 "$@"

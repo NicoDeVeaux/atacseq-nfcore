@@ -1,0 +1,37 @@
+nextflow_workflow {
+
+    name "nf-verify bug: a control that itself names a control is never offered as a control"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-control-with-a-control"
+
+    // nf-verify R2 (silent drops): workflows/atacseq.nf:366-371 offers only libraries without a control as controls.
+    // INPUT_A names OTHER as its control and is TREATED_A's control, so the combine at :378 finds no partner for
+    // TREATED_A, which silently gets no peak calls. bin/check_samplesheet.py accepts the samplesheet.
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R2-silent-drops.md
+    test("treatments of a control that has its own control are peak-called, or the samplesheet is rejected") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir       = "$outputDir"
+                with_control = true
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/control_with_a_control.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def rejected = NfVerifyBugs.rejected(workflow.success, workflow.stdout + workflow.stderr, /(?i)control/)
+            def treated = NfVerifyBugs.tasks("${launchDir}/work", /MERGED_LIBRARY_CALL_ANNOTATE_PEAKS:MACS3_CALLPEAK/)
+                .findAll { t -> t.meta.id.startsWith('TREATED_A') && t.inputs.any { f -> f.startsWith('INPUT_A') } }
+            assert rejected || treated*.meta*.id.sort() == [ 'TREATED_A_REP1', 'TREATED_A_REP2' ] : "TREATED_A libraries peak-called against INPUT_A: ${treated*.meta*.id}; run success=${workflow.success}"
+        }
+    }
+}

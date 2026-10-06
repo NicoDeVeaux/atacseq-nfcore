@@ -1,0 +1,40 @@
+nextflow_workflow {
+
+    name "nf-verify bug: zero-peak libraries and controls get no ataqv QC"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-ataqv-zero-peak-libraries"
+
+    // nf-verify R2 (silent drops): ataqv input is MARKDUPLICATES BAMs inner-joined with MACS3 peaks
+    // (workflows/atacseq.nf:454-459), and bam_peaks_call_qc_annotate_macs3_homer.nf:41-48 drops empty peak files.
+    // A library with 0 peaks, and every control (never peak-called with --with_control), silently gets no ataqv report.
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/rules/R2-silent-drops.md
+    test("ataqv runs for every library, including controls and a library with zero peaks") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir                  = "$outputDir"
+                with_control            = true
+                skip_ataqv              = false
+                nf_verify_zero_peak_ids = 'WT_REP2'
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/zero_peak_library.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def ataqv = NfVerifyBugs.tasks("${launchDir}/work", /ATAQV_ATAQV/)
+            assertAll(
+                { assert workflow.success },
+                { assert ataqv*.meta*.id.sort() == [ 'INPUT_REP1', 'INPUT_REP2', 'KO_REP1', 'KO_REP2', 'WT_REP1', 'WT_REP2' ] : "ataqv ran for ${ataqv*.meta*.id.sort()}" }
+            )
+        }
+    }
+}

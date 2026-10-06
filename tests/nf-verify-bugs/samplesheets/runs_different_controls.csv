@@ -1,0 +1,5 @@
+sample,fastq_1,fastq_2,replicate,control,control_replicate
+S,r1a.fastq.gz,,1,INPUT,1
+S,r1b.fastq.gz,,1,INPUT,2
+INPUT,c1.fastq.gz,,1,,
+INPUT,c2.fastq.gz,,2,,

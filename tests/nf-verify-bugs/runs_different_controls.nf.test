@@ -1,0 +1,40 @@
+nextflow_workflow {
+
+    name "nf-verify bug: runs of one replicate naming different controls collide on output names"
+    script "../../workflows/atacseq.nf"
+    workflow "ATACSEQ"
+    config "./nextflow.config"
+    tag "nf-verify-bug"
+    tag "nf-verify-bug-runs-different-controls"
+
+    // nf-verify R1 (meta agreement): S_REP1 has two runs naming INPUT_REP1 and INPUT_REP2. bin/check_samplesheet.py
+    // accepts this; the library merge at workflows/atacseq.nf:241-254 groups by the whole meta, so control splits the
+    // runs into two library items that share the id S_REP1 and overwrite each other's published outputs.
+    // https://github.com/seqeralabs/nf-verify/blob/main/docs/findings.md#findings
+    test("one library is merged per replicate, whatever its runs name as control") {
+
+        options "-stub"
+
+        when {
+            params {
+                load("$baseDir/tests/nf-verify-bugs/stub_params.json")
+                outdir       = "$outputDir"
+                with_control = true
+            }
+            workflow {
+                def sheet = NfVerifyBugs.stageSamplesheet("${baseDir}/tests/nf-verify-bugs/samplesheets/runs_different_controls.csv", "$outputDir")
+                NfVerifyBugs.atacseqInputs(sheet, "$outputDir")
+            }
+        }
+
+        then {
+            def rejected = NfVerifyBugs.rejected(workflow.success, workflow.stdout + workflow.stderr, /(?i)control/)
+            def ids = NfVerifyBugs.tasks("${launchDir}/work", /:PICARD_MERGESAMFILES_LIBRARY/)*.meta*.id
+            assertAll(
+                // A fix may reject the samplesheet (message about the control) or merge the runs into one library.
+                { assert workflow.success || rejected : "run failed for another reason; see the Nextflow output" },
+                { assert ids.size() == ids.unique(false).size() : "library ids merged more than once: ${ids.countBy { it }.findAll { it.value > 1 }}" }
+            )
+        }
+    }
+}
