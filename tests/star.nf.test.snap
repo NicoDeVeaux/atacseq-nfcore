@@ -123,7 +123,7 @@
                     "subread": "2.0.1"
                 },
                 "TRIMGALORE": {
-                    "trimgalore": "2.1.0"
+                    "trimgalore": "2.3.0"
                 },
                 "TSS_EXTRACT": {
                     "sed": 4.7
