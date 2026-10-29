@@ -79,7 +79,8 @@
                     "gffread": {
                         "branch": "master",
                         "git_sha": "c9ad4d691aa339e478a77847e3ef854ccd21778b",
-                        "installed_by": ["modules"]
+                        "installed_by": ["modules"],
+                        "patch": "modules/nf-core/gffread/gffread.diff"
                     },
                     "gunzip": {
                         "branch": "master",

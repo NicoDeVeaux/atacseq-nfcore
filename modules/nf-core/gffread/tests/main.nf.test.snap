@@ -23,7 +23,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -47,15 +47,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:22:41.259965105",
+        "timestamp": "2026-10-29T11:11:54.030628",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-gff3": {
@@ -69,7 +69,7 @@
                         {
                             "id": "test"
                         },
-                        "test.gff3:md5,c4e5da6267c6bee5899a2c204ae1ad91"
+                        "test.gff3:md5,f964eb24e3beef677faf9bf209d28dd0"
                     ]
                 ],
                 "2": [
@@ -82,7 +82,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -96,7 +96,7 @@
                         {
                             "id": "test"
                         },
-                        "test.gff3:md5,c4e5da6267c6bee5899a2c204ae1ad91"
+                        "test.gff3:md5,f964eb24e3beef677faf9bf209d28dd0"
                     ]
                 ],
                 "gtf": [
@@ -106,15 +106,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:22:51.897172513",
+        "timestamp": "2026-10-29T11:12:00.486197",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-gtf-stub": {
@@ -141,7 +141,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -165,15 +165,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:22:46.582356403",
+        "timestamp": "2026-10-29T11:11:57.031501",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-bed": {
@@ -200,15 +200,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:23:13.476804733",
+        "timestamp": "2026-10-29T11:12:13.460494",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-bed-stub": {
@@ -235,15 +235,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:23:18.831655873",
+        "timestamp": "2026-10-29T11:12:16.87129",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-fasta-stub": {
@@ -270,7 +270,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -294,15 +294,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:23:08.064865029",
+        "timestamp": "2026-10-29T11:12:10.341693",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-gff3-stub": {
@@ -329,7 +329,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -353,15 +353,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:22:57.33529754",
+        "timestamp": "2026-10-29T11:12:03.736135",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     },
     "sarscov2-gff3-fasta": {
@@ -388,7 +388,7 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ],
                 "bed": [
@@ -412,15 +412,15 @@
                     [
                         "GFFREAD",
                         "gffread",
-                        "0.12.7"
+                        "0.12.9"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-04-24T10:23:02.723479313",
+        "timestamp": "2026-10-29T11:12:07.323388",
         "meta": {
             "nf-test": "0.9.5",
-            "nextflow": "25.10.4"
+            "nextflow": "26.04.6"
         }
     }
 }

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Enhancements & fixes
 
+- Update GFFREAD to 0.12.9 to fix annotation conversion failures introduced by the 0.12.7 selection in [[#448]](https://github.com/nf-core/atacseq/pull/448), found during the [[#473]](https://github.com/nf-core/atacseq/issues/473) module sweep.
 - Preserve PRESEQ BAM mode, verbosity and fixed seed on retry, and append `-defects` rather than dropping the original options (follow-up to [[#473]](https://github.com/nf-core/atacseq/issues/473)).
 - Update `trimgalore` module to Trim Galore 2.3.0 and pass `--no_poly_g` so the default preprocessing matches Trim Galore 0.6.x (no automatic poly-G trimming); fixes the 2.1.0 regression from [[#448]](https://github.com/nf-core/atacseq/pull/448) where legitimate 5′ poly-C heads on Read 2 could be removed.
 - Set the Chromap `PICARD_ADDORREPLACEREADGROUPS` read-group library (`RGLB`) to the sample/replicate name without the final `_T<n>` suffix, so `MarkDuplicates` marks duplicates across technical runs of the same library again (follow-up to [[#448]](https://github.com/nf-core/atacseq/pull/448)).
@@ -59,7 +60,7 @@ Note, since the pipeline is now using Nextflow DSL2, each process will be run wi
 | `bwa`                   | 0.7.17      | 0.7.19      |
 | `chromap`               | 0.2.4       | 0.3.2       |
 | `deeptools`             | 3.5.1       | 3.5.6       |
-| `gffread`               | 0.12.1      | 0.12.7      |
+| `gffread`               | 0.12.1      | 0.12.9      |
 | `macs2`                 | 2.2.7.1     |             |
 | `macs3`                 |             | 3.0.4       |
 | `picard`                | 3.0.0       | 3.4.0       |

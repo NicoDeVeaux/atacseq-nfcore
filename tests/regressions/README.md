@@ -5,3 +5,5 @@ Run `python3 tests/regressions/preseq_retry.py` with Python 3 and Nextflow insta
 The check executes the actual PRESEQ module on the local executor without containers or Conda. Its stand-in executable records arguments, simulates an initial complexity-model failure, and succeeds only when original options and the retry flag are present. It checks normal success, retry recovery and an intentionally broken mutation. It does not validate scientific estimates or the complete ATAC pipeline.
 
 The real-data comparisons and wider review are recorded in `PR-DRAFT.md` and `docs/module-update-audit.md`.
+
+Run `python3 tests/regressions/gffread_conversion.py` for the actual packaged GFFREAD conversion check. It requires Docker and tests feature coordinates, identifiers and the observed fixed runtime on a benign annotation. Use `--docker-context colima` on the local Mac. It does not reproduce historical failures or prove all annotation inputs equivalent.

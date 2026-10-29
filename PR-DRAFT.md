@@ -6,11 +6,13 @@ Status: versioned proposal on the fork; broader behavior review remains open.
 
 ## Problem and changes
 
-The module update in #448 changed scientific output and optional-QC failure behavior. This branch contains three corrections:
+The module update in #448 changed scientific output and optional-QC failure behavior. This branch contains four corrections:
 
 - Update the complete Trim Galore module to **2.3.0**, which fixes the upstream wrong-end R2 clipping bug, and pass **`--no_poly_g`** to preserve the pipeline's earlier default. Updating the version alone does not preserve that default.
 - Give Chromap technical runs from the same biological library a shared **`RGLB`**, while retaining distinct **`RGID`** values. Picard can then mark duplicates across those runs. This is independent of trimming.
 - Preserve PRESEQ's original command options on retry and append **`-defects`**. The updated wrapper calls `String.join` with no elements, producing an empty string and dropping `-bam`, `-verbose` and `-seed 1`. Record the local module patch in `modules.json`.
+
+- Update GFFREAD to **0.12.9**, using the packaged Bioconda container and matching Conda declaration. This fixes an upstream annotation-conversion regression affecting valid GFF scores. The pipeline GFF-to-GTF command is preserved, and the local module patch is registered. The historical HIV runs use GTF input and do not exercise this branch.
 
 The PRESEQ correction preserves the module's new retry policy. The old ignore-to-new-retry policy, which can disable the estimate's defect check, is a separate documented behavior change; successful completion does not establish the validity of every estimate.
 
@@ -23,6 +25,8 @@ The PRESEQ correction preserves the module's new retry policy. The old ignore-to
 - `python3 tests/regressions/preseq_retry.py` exercises the actual PRESEQ wrapper: normal success, retry recovery and an intentionally broken mutation. Its executable is an argument-checking stand-in, so it does not validate numerical estimates.
 - Changed-file pre-commit checks, including Nextflow lint, pass. Full nf-core/tools 4.1.0 lint reports 13 failures: five template differences and eight container-config differences. A separate run on immutable `a9b588` reproduces the same 13 failures. These remain documented baseline debt; full lint is not reported as passing. Its formatter setup also encountered a local npm/prek error, while the separately executed repository formatter hook passes.
 
+All nine existing GFFREAD module tests pass locally in `--ci` mode without snapshot updates, using nf-test 0.9.5, Nextflow 26.04.6 and the upstream module helper nft-utils 0.0.9. Reviewed snapshot changes are version values, GFF3 comment headers and run metadata; GTF, FASTA, BED and stub hashes are unchanged. The pipeline's separate test configuration still pins nft-utils 0.0.3. Docker amd64 was exercised; matching Conda declarations and SIF availability were checked, while Conda resolution and SIF execution were not.
+
 The historical full-data runs remain pinned to `a9b588`; they have not been rerun or relabeled as testing the later PRESEQ correction. [Reproducibility repository](https://github.com/NicoDeVeaux/atacseq-modules-update-verification). The full output-tree archive is being prepared in an unpublished draft release.
 
 ## Broader review and opening gates
@@ -33,8 +37,10 @@ The [module audit](docs/module-update-audit.md) accounts for all **267 changed m
 - [x] Scan every declared version change and later merged module fix.
 - [x] Reproduce PRESEQ retry option loss and exercise its correction.
 - [x] Classify the tested SAMtools and Picard candidates as inherited defects using old/selected binary controls.
-- [ ] Resolve remaining deepTools and GFFREAD candidates through targeted checks or source-backed exclusions.
-- [ ] Finish the alignment/peak review and document expected changes from the upgrades themselves.
+- [x] Classify the tested deepTools boundary behavior as inherited.
+- [x] Identify the GFFREAD conversion regression and prepare its 0.12.9 mitigation.
+- [x] Validate the packaged GFFREAD conversion, all nine existing module tests and the reviewed snapshots.
+- [x] Finish the bounded alignment/peak review: real mappings, QC partitions, SAM metadata and display fields are compared separately. Human/SE/ALT/repetitive-data equivalence remains unestablished.
 - [ ] Finish and link the downloadable computation/output archive.
 - [ ] Record final branch validation and update this description before opening the nf-core PR.
 
