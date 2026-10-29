@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Enhancements & fixes
 
+- Preserve PRESEQ BAM mode, verbosity and fixed seed on retry, and append `-defects` rather than dropping the original options (follow-up to [[#473]](https://github.com/nf-core/atacseq/issues/473)).
 - Update `trimgalore` module to Trim Galore 2.3.0 and pass `--no_poly_g` so the default preprocessing matches Trim Galore 0.6.x (no automatic poly-G trimming); fixes the 2.1.0 regression from [[#448]](https://github.com/nf-core/atacseq/pull/448) where legitimate 5′ poly-C heads on Read 2 could be removed.
 - Set the Chromap `PICARD_ADDORREPLACEREADGROUPS` read-group library (`RGLB`) to the sample/replicate name without the final `_T<n>` suffix, so `MarkDuplicates` marks duplicates across technical runs of the same library again (follow-up to [[#448]](https://github.com/nf-core/atacseq/pull/448)).
 - [[#466]](https://github.com/nf-core/atacseq/pull/466) - Run the `test_controls` profile in `tests/controls.nf.test` and set `with_control = true` in it, so CI exercises `--with_control`.
