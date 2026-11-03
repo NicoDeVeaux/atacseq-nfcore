@@ -57,10 +57,12 @@ runs:
         conda-remove-defaults: true
 
     - name: Run nf-test
+      id: nf_test_execution
       shell: bash
       env:
         NFT_WORKDIR: ${{ env.NFT_WORKDIR }}
       run: |
+        touch "$RUNNER_TEMP/nf-test-controls-start"
         nf-test test \
           --profile=+${{ inputs.profile }} \
           $(if [ -n "${{ inputs.tags }}" ]; then echo "--tag ${{ inputs.tags }}"; fi) \
@@ -103,6 +105,40 @@ runs:
         else
           echo "| ⚠️ | No test results found | ${{ inputs.profile }} | ${{ inputs.shard }}/${{ inputs.total_shards }} |" >> $GITHUB_STEP_SUMMARY
         fi
+
+    - name: Capture controls reporting evidence
+      id: controls_evidence
+      if: always()
+      continue-on-error: true
+      shell: bash
+      env:
+        CAPTURE_PROFILE: ${{ inputs.profile }}
+        CAPTURE_SHARD: ${{ inputs.shard }}/${{ inputs.total_shards }}
+        NF_TEST_OUTCOME: ${{ steps.nf_test_execution.outcome }}
+      run: |
+        evidence_dir=$(mktemp -d "$RUNNER_TEMP/controls-evidence.XXXXXX")
+        echo "path=$evidence_dir" >> "$GITHUB_OUTPUT"
+        python3 tests/ci/capture_controls_evidence.py \
+          --workspace "$GITHUB_WORKSPACE" \
+          --workdir "${NFT_WORKDIR:-.nf-test}" \
+          --output "$evidence_dir" \
+          --source-commit "$(git rev-parse HEAD)" \
+          --since-file "$RUNNER_TEMP/nf-test-controls-start" \
+          --profile "$CAPTURE_PROFILE" \
+          --shard "$CAPTURE_SHARD" \
+          --nextflow "${NXF_VERSION:-unknown}" \
+          --nf-test "${NFT_VER:-unknown}" \
+          --nf-test-outcome "${NF_TEST_OUTCOME:-unknown}"
+
+    - name: Upload controls reporting evidence
+      if: ${{ always() && steps.controls_evidence.outputs.path != '' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: controls-reporting-${{ inputs.profile }}-${{ env.NXF_VERSION }}-shard-${{ inputs.shard }}-attempt-${{ github.run_attempt }}
+        path: ${{ steps.controls_evidence.outputs.path }}/
+        retention-days: 7
+        if-no-files-found: warn
 
     - name: Clean up
       if: always()

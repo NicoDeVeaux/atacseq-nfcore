@@ -69,7 +69,7 @@ process MULTIQC {
     def args = task.ext.args ?: ''
     def custom_config = params.multiqc_config ? "--config $multiqc_custom_config" : ''
     """
-    multiqc \\
+    multiqc_fingerprint.py \\
         -f \\
         $args \\
         $custom_config \\
