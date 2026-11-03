@@ -148,7 +148,7 @@ def raw_inputs(capture, directory, relative, case, role):
     if not files:
         capture.issue(role, 'raw_matrix_missing')
     for path in files:
-        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+-]{0,179}\.plotFingerprint\.raw\.txt', path.name) or UNSAFE.search(path.name):
+        if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.+-]{0,179}\.plotFingerprint\.raw\.txt', path.name) or UNSAFE.search(path.name):
             capture.issue(role, 'unsupported_raw_matrix_name'); continue
         capture.copy(path, relative / path.name, [case / 'work'], role)
 

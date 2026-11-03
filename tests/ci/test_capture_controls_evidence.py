@@ -128,6 +128,20 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(sum('/exports/' in f['path'] for f in result['files']), 2)
         self.assertTrue(any(f['role'] == 'MULTIQC/observed_tool_versions' and f['was_symlink'] for f in result['files']))
 
+    def test_supported_leading_underscore_preserves_both_raw_copies(self):
+        raw = next(self.fingerprint.glob('*.plotFingerprint.raw.txt'))
+        staged = self.multiqc / 'deeptools' / raw.name
+        staged.unlink()
+        renamed = raw.with_name('_CASE_REP1.mLb.clN.plotFingerprint.raw.txt')
+        raw.rename(renamed)
+        (staged.parent / renamed.name).symlink_to(renamed)
+        result, _ = self.collect()
+        self.assertTrue(result['capture_complete'])
+        copies = [f for f in result['files'] if f['role'] in {
+            'MERGED_LIBRARY_DEEPTOOLS_PLOTFINGERPRINT/raw', 'MULTIQC/staged_raw'}]
+        self.assertEqual(len(copies), 2)
+        self.assertTrue(all(Path(f['path']).name == renamed.name for f in copies))
+
     def test_ambiguous_short_task_hash_never_uses_first_match(self):
         (self.case / 'work/12' / ('abcdef' + '1' * 24)).mkdir()
         result, _ = self.collect()
