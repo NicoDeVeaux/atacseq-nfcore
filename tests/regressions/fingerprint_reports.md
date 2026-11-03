@@ -2,6 +2,8 @@
 
 Run the label probe with Nextflow 25.10.4 and 26.10.5, then run the report check with the pinned MultiQC 1.13 image. Each invocation requires a fresh output directory and retains its commands, logs and result JSON.
 
+The `fingerprint-reports` CI matrix runs these checks on both engines and blocks `confirm-pass` on failure. Its receipts, subprocess logs and fingerprint tables are retained for seven days.
+
 ```bash
 audit=/absolute/path/to/new-evidence
 mkdir -p "$audit"
@@ -30,7 +32,7 @@ Repeat the final command with `labels-26.json` and a fresh `report-26` output. T
 | Other configured formats retain their bytes      | Observe the actual assets config without a format override; compare explicit YAML and JSON original/wrapped exports byte-for-byte.                                   |
 | Inputs and failures remain visible               | Verify fixture hashes and pinned source hashes; retain all subprocess exits, standard output and errors.                                                             |
 
-The normal run requires nine negative controls to fail: an invalid colon-bearing sample ID, original CLI numeric export, legacy shared-control labels, a blank series, duplicate X column, changed numeric value, missing sample, corrupted fixture and numeric-key/string-key collision. The actual samplesheet checker must also accept the legal delimiter-collision witness. These metadata fixtures reference filenames only and do not read FASTQs. The runner exercises the production normalizer's non-mutation property directly, and requires the original numerical plot-export bytes to remain unchanged.
+The normal run requires eleven negative controls to fail: an invalid colon-bearing sample ID, original CLI numeric export, legacy shared-control labels, the previous treatment-prefix cleaning collision, unprotected marker-first labels with empty-name fallbacks, a blank series, duplicate X column, changed numeric value, missing sample, corrupted fixture and numeric-key/string-key collision. The actual samplesheet checker must also accept the legal delimiter-collision, `CASE.mLb.clN`, and `mLb_A`/`mLb_B` witnesses. Generated comparison-control identities retain their full metadata through the fingerprint parser; both cleaning-sensitive cases must preserve every original per-role numerical curve. Existing aliases between different cleaned treatment IDs remain outside this check. Explicit filename naming, full names, custom replacements, directory prefixes and cleanup-option restoration are checked against the original library. These metadata fixtures reference filenames only and do not read FASTQs. The runner exercises the production normalizer's non-mutation property directly, and requires the original numerical plot-export bytes to remain unchanged.
 
 To reproduce the serializer failure as a nonzero process exit, add `--baseline` and use a fresh output directory. Its expected error is `Duplicate fingerprint TSV columns`; a setup or execution error is not a valid red result. The old label closure can independently be tested by exporting the baseline `conf/modules.config` to evidence and passing it to the probe; its comparison-identity assertion must fail.
 

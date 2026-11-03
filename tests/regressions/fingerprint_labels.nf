@@ -30,6 +30,11 @@ workflow {
         evaluateLabels.call('CASE_A_REP1', 'CONTROL_REP1', true),
         evaluateLabels.call('CASE_A_REP1__control_CONTROL_REP1', 'CONTROL_REP1', true)
     ]
+    def cleaningCase = evaluateLabels.call('CASE.mLb.clN_REP1', 'CONTROL_REP1', true)
+    def emptyCleaningCases = [
+        evaluateLabels.call('mLb_A_REP1', 'CONTROL_A_REP1', true),
+        evaluateLabels.call('mLb_B_REP1', 'CONTROL_B_REP1', true)
+    ]
     def receipt = [
         source: configFile.toString(),
         source_sha256: java.security.MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString(),
@@ -37,14 +42,18 @@ workflow {
         nextflow_version: nextflow.version.toString(),
         comparisons: comparisons,
         no_control: noControl,
-        namespace_cases: namespaceCases
+        namespace_cases: namespaceCases,
+        cleaning_case: cleaningCase,
+        empty_cleaning_cases: emptyCleaningCases
     ]
     file(params.output_json).text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(receipt)) + '\n'
     assert comparisons.values().every { comparison -> comparison.labels.size() == 2 } : 'Each comparison needs treatment and control labels'
     assert comparisons.values().every { comparison -> comparison.labels[0].startsWith(comparison.treatment) } : 'Treatment identity was lost'
     assert comparisons.values().every { comparison -> comparison.labels[1].contains(comparison.treatment) && comparison.labels[1].contains(comparison.control) } : 'Control label does not identify its comparison'
     assert comparisons.values().collectMany { comparison -> comparison.labels }.toSet().size() == 4 : 'Comparison labels collide'
-    assert noControl.labels.size() == 1 && noControl.labels[0].startsWith('TREATMENT_A') : 'No-control labeling changed'
+    assert noControl.labels == ['TREATMENT_A.mLb.clN'] : 'No-control labeling changed'
     assert namespaceCases.collectMany { comparison -> comparison.labels }.toSet().size() == 4 : 'A legal treatment ID collides with a comparison control label'
+    assert cleaningCase.labels.size() == 2 : 'Cleaning-sensitive comparison needs both labels'
+    assert emptyCleaningCases.collectMany { comparison -> comparison.labels }.toSet().size() == 4 : 'Distinct controls need four raw comparison labels'
     println "Fingerprint labels: 2 comparisons, 4 distinct labels; no-control case passed"
 }

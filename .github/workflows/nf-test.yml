@@ -172,6 +172,8 @@ jobs:
           path: |
             ${{ runner.temp }}/fingerprint-report/labels.json
             ${{ runner.temp }}/fingerprint-report/report/RESULT.json
+            ${{ runner.temp }}/fingerprint-report/report/*/*.log
+            ${{ runner.temp }}/fingerprint-report/report/*/output/multiqc_data/*fingerprint*.txt
           retention-days: 7
 
   confirm-pass:

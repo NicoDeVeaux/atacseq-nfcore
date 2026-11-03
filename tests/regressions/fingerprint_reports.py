@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 
@@ -121,6 +122,95 @@ def reject(operation, label):
     raise ContractError('Negative control was accepted: ' + label)
 
 
+def control_identity(label):
+    require(label.startswith('control::') and label.endswith('.mLb.clN'),
+            'Missing generated comparison-control namespace')
+    return label[:-len('.mLb.clN')]
+
+
+def validate_cleaning_scope(module):
+    from multiqc import config
+    from multiqc.modules.base_module import BaseMultiqcModule
+    from multiqc.utils import util_functions
+    original = BaseMultiqcModule.clean_s_name
+    original_writer = util_functions.write_data_file
+    options = ['fn_clean_sample_names', 'use_filename_as_sample_name', 'prepend_dirs', 'prepend_dirs_sep', 'prepend_dirs_depth',
+               'sample_names_replace', 'sample_names_replace_exact', 'sample_names_replace_regex',
+               'sample_names_replace_complete']
+    frozen = {key: getattr(config, key) for key in options}
+    instance = object.__new__(BaseMultiqcModule)
+    instance.anchor = 'deeptools'
+    label = 'control::CASE.mLb.clN_REP1::CONTROL_REP1.mLb.clN'
+    context = {'sp_key': 'deeptools/plotFingerprintOutRawCounts', 'root': 'synthetic/dir'}
+    observed = {}
+
+    def exercise():
+        config.fn_clean_sample_names = True
+        clean = instance.clean_s_name
+        require(clean(label, context) == control_identity(label), 'Generated control metadata was truncated')
+        for value, metadata in [(label, {'sp_key': 'another/module'}),
+                                ('mLb_A_REP1.mLb.clN', context),
+                                ('control_CASE.mLb.clN', context),
+                                ('control::CASE.mLb.clN_REP1', context)]:
+            require(clean(value, metadata) == original(instance, value, metadata),
+                    'Unrelated or nongenerated name cleaning changed')
+        config.fn_clean_sample_names = False
+        require(clean(label, context) == original(instance, label, context) == label,
+                'Explicit full-name choice changed')
+        config.fn_clean_sample_names = True
+        filename_context = {**context, 'fn': 'raw_input.fastq.gz'}
+        for choice in [True, [context['sp_key']]]:
+            config.use_filename_as_sample_name = choice
+            expected = original(instance, label, filename_context)
+            require(expected != filename_context['fn'], 'Original filename-cleanup control is not active')
+            require(clean(label, filename_context) == expected, 'Filename override cleanup changed')
+        config.use_filename_as_sample_name = True
+        require(clean(label, filename_context, filename='override.fastq.gz')
+                == original(instance, label, filename_context, filename='override.fastq.gz'),
+                'Explicit filename override cleanup changed')
+        require(clean(label, context) == control_identity(label),
+                'Filename preference without an effective filename bypassed identity protection')
+        config.use_filename_as_sample_name = ['another/module']
+        require(clean(label, filename_context) == control_identity(label),
+                'Nonmatching filename preference bypassed identity protection')
+        config.use_filename_as_sample_name = [context['sp_key']]
+        require(clean(label, filename_context, seach_pattern_key='another/module') == control_identity(label),
+                'Explicit nonmatching search key bypassed identity protection')
+        config.use_filename_as_sample_name = False
+        config.sample_names_replace = {control_identity(label): 'RENAMED_CONTROL'}
+        config.sample_names_replace_exact = True
+        config.sample_names_replace_regex = False
+        config.sample_names_replace_complete = True
+        require(clean(label, context) == 'RENAMED_CONTROL', 'Custom sample-name replacement was bypassed')
+        config.sample_names_replace = {}
+        config.prepend_dirs = True
+        config.prepend_dirs_depth = 0
+        config.prepend_dirs_sep = '|'
+        require(clean(label, context) == 'synthetic|dir|' + control_identity(label),
+                'Directory-prefix choice changed')
+        try:
+            clean(label, {**context, 'root': object()})
+        except AttributeError:
+            pass
+        else:
+            raise ContractError('Exceptional original cleaner control did not execute')
+        require(config.fn_clean_sample_names is True, 'Cleaner option was not restored after an exception')
+        observed.update(unrelated_names_unchanged=True, full_names_preserved=True,
+                        filename_override_choices_preserved=True,
+                        custom_renaming_preserved=True, directory_prefix_preserved=True,
+                        cleaning_option_restored_after_exception=True)
+
+    try:
+        with patch('multiqc.__main__.run_multiqc', exercise):
+            module.main()
+    finally:
+        BaseMultiqcModule.clean_s_name = original
+        util_functions.write_data_file = original_writer
+        for key, value in frozen.items():
+            setattr(config, key, value)
+    return observed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True, type=Path)
@@ -140,6 +230,14 @@ def main():
                 'The pinned original parser source changed')
         labels = json.loads(args.labels_json.read_text())
         require(labels['source_sha256'] == digest(repo / 'conf/modules.config'), 'Label probe source is stale')
+        cleaning = labels['cleaning_case']
+        require(cleaning['treatment'] == 'CASE.mLb.clN_REP1' and cleaning['control'] == 'CONTROL_REP1'
+                and len(cleaning['labels']) == 2, 'Missing cleaning-sensitive producer witness')
+        empty_cleaning = labels['empty_cleaning_cases']
+        require([(row['treatment'], row['control']) for row in empty_cleaning]
+                == [('mLb_A_REP1', 'CONTROL_A_REP1'), ('mLb_B_REP1', 'CONTROL_B_REP1')]
+                and all(len(row['labels']) == 2 for row in empty_cleaning),
+                'Missing distinct-control empty-cleaning producer witnesses')
         probe = Path(__file__).with_name('fingerprint_labels.nf')
         require(labels['probe_source_sha256'] == digest(probe), 'Label probe implementation is stale')
         config = repo / 'assets/multiqc_config.yml'
@@ -151,6 +249,11 @@ def main():
         header = 'sample,fastq_1,fastq_2,replicate,control,control_replicate\n'
         metadata = ('CASE_A,a_1.fastq.gz,a_2.fastq.gz,1,CONTROL,1\n'
                     'CASE_A_REP1__control_CONTROL,b_1.fastq.gz,b_2.fastq.gz,1,CONTROL,1\n'
+                    'CASE.mLb.clN,d_1.fastq.gz,d_2.fastq.gz,1,CONTROL,1\n'
+                    'mLb_A,e_1.fastq.gz,e_2.fastq.gz,1,CONTROL_A,1\n'
+                    'mLb_B,f_1.fastq.gz,f_2.fastq.gz,1,CONTROL_B,1\n'
+                    'CONTROL_A,g_1.fastq.gz,g_2.fastq.gz,1,,\n'
+                    'CONTROL_B,h_1.fastq.gz,h_2.fastq.gz,1,,\n'
                     'CONTROL,c_1.fastq.gz,c_2.fastq.gz,1,,\n')
         for case, text in [('legal_namespace', metadata), ('invalid_colon', metadata.replace('CASE_A,', 'CASE::A,', 1))]:
             source = args.output / (case + '.csv')
@@ -163,6 +266,15 @@ def main():
             result['executions'].append({'case': case, 'command': command, 'exit': completed.returncode})
             if case == 'legal_namespace':
                 require(completed.returncode == 0 and destination.is_file(), 'Real samplesheet checker rejected the legal namespace witness')
+                with destination.open() as stream:
+                    validated = list(csv.DictReader(stream))
+                require(any(row['sample'] == cleaning['treatment'] + '_T1'
+                            and row['control'] == cleaning['control'] for row in validated),
+                        'Cleaning-sensitive metadata does not follow the real samplesheet validator')
+                require(all(any(row['sample'] == case['treatment'] + '_T1'
+                                and row['control'] == case['control'] for row in validated)
+                            for case in empty_cleaning),
+                        'Distinct-control metadata does not follow the real samplesheet validator')
             else:
                 require(completed.returncode != 0 and b'Sample name contains invalid characters!' in completed.stdout,
                         'Real samplesheet checker did not reject the colon namespace')
@@ -230,6 +342,81 @@ def main():
             legacy_output = run('legacy_labels', legacy, True)
             result['negative_controls'].append(reject(lambda: validate_report(legacy_output, expected), 'legacy_shared_control_labels'))
 
+            def cleaning_input(name, pair, entry=None):
+                require(len(pair) == 2 and all(not any(c in s for c in "\t\n'") for s in pair),
+                        'Invalid cleaning-sensitive labels')
+                entry = entry or manifest['fixtures'][0]
+                lines = load_fixture(fixtures / entry['fixture'], entry)
+                lines[1] = "'" + pair[0] + "'\t'" + pair[1] + "'\n"
+                target = args.output / (name + '.plotFingerprint.raw.txt')
+                target.write_text(''.join(lines))
+                return target
+
+            role_expected = {}
+            role_oracles = []
+            for role, index, neutral in [('treatment', 0, 'ORACLE_OTHER_CONTROL'),
+                                          ('control', 1, 'ORACLE_OTHER_TREATMENT')]:
+                pair = list(cleaning['labels'])
+                pair[1 - index] = neutral
+                source = cleaning_input('cleaning_original_' + role, pair)
+                oracle = run('cleaning_original_' + role, [source], False)
+                _, curves, _ = read_curves(oracle)
+                require(len(curves) == 2 and neutral in curves, 'Original per-role oracle lost a curve')
+                selected = {name: points for name, points in curves.items() if name != neutral}
+                require(len(selected) == 1, 'Original per-role oracle is ambiguous')
+                if role == 'control':
+                    selected = {control_identity(cleaning['labels'][1]): next(iter(selected.values()))}
+                require(not set(role_expected) & set(selected),
+                        'MultiQC cleaning merges the treatment and comparison-control identities')
+                role_expected.update(selected)
+                role_oracles.append({'role': role, 'output': str(oracle), 'cleaned_names': list(selected)})
+            require(len(role_expected) == 2, 'Cleaning-sensitive witness needs both original role curves')
+            source = cleaning_input('cleaning_proposal', cleaning['labels'])
+            positive = run('cleaning_proposal', [source], True)
+            result['cleaning_sensitive_id'] = {
+                'supported_sample': 'CASE.mLb.clN', 'metadata': cleaning, 'original_per_role_oracles': role_oracles,
+                'validated': validate_report(positive, role_expected),
+                'scope': 'Prevents new within-comparison loss; inherited aliases between different cleaned treatment IDs are outside this witness.'}
+            previous = [cleaning['labels'][0],
+                        cleaning['treatment'] + '::control::' + cleaning['control'] + '.mLb.clN']
+            source = cleaning_input('cleaning_previous_prefix', previous)
+            mutant = run('cleaning_previous_prefix', [source], False)
+            _, mutant_curves, _ = read_curves(mutant)
+            require(len(mutant_curves) == 1, 'Previous treatment-prefix cleaner did not reproduce curve loss')
+            result['negative_controls'].append({**reject(
+                lambda: validate_curves(mutant, role_expected), 'treatment_prefix_cleaning_collision'),
+                'observed_curves': len(mutant_curves), 'required_curves': 2})
+
+            empty_expected, empty_inputs, aliases = {}, [], []
+            for index, case in enumerate(empty_cleaning):
+                source = cleaning_input('empty_cleaning_' + str(index), case['labels'], manifest['fixtures'][index])
+                empty_inputs.append(source)
+                oracle = run('empty_cleaning_original_' + str(index), [source], False)
+                _, curves, _ = read_curves(oracle)
+                treatment = case['labels'][0]
+                require(len(curves) == 2 and treatment in curves,
+                        'Original empty-name fallback did not retain its treatment curve')
+                control = next(name for name in curves if name != treatment)
+                aliases.append(control)
+                empty_expected[treatment] = curves[treatment]
+                empty_expected[control_identity(case['labels'][1])] = curves[control]
+            require(len(empty_expected) == 4 and len(set(aliases)) == 1,
+                    'Distinct-control witness does not exercise original control-name collision')
+            positive = run('empty_cleaning_forward', empty_inputs, True)
+            reverse = run('empty_cleaning_reverse', list(reversed(empty_inputs)), True)
+            forward_values = validate_report(positive, empty_expected)
+            reverse_values = validate_report(reverse, empty_expected)
+            require(forward_values['table_sha256'] == reverse_values['table_sha256'],
+                    'Distinct-control numeric table changes with input order')
+            result['empty_cleaning_distinct_controls'] = {
+                'metadata': empty_cleaning, 'forward': forward_values, 'reverse': reverse_values}
+            mutant = run('empty_cleaning_unprotected', empty_inputs, False)
+            _, mutant_curves, _ = read_curves(mutant)
+            require(len(mutant_curves) == 3, 'Unprotected cleaner did not reproduce distinct-control curve loss')
+            result['negative_controls'].append({**reject(
+                lambda: validate_curves(mutant, empty_expected), 'unprotected_generated_control_cleanup'),
+                'observed_curves': len(mutant_curves), 'required_curves': 4})
+
             table = Path(result['forward']['table'])
             rows = list(csv.reader(table.open(), delimiter='\t'))
             mutants = {}
@@ -251,6 +438,7 @@ def main():
             wrapper = repo / 'bin/multiqc_fingerprint.py'
             spec = importlib.util.spec_from_file_location('production_fingerprint_wrapper', wrapper)
             module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+            result['name_cleaning_scope'] = validate_cleaning_scope(module)
             original_data = {'SAMPLE': {0.0: 0.25, 0.5: 0.75}}
             frozen = copy.deepcopy(original_data)
             normalized = module.normalize_numeric_keys(original_data)
