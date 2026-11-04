@@ -37,6 +37,7 @@ class CaptureTests(unittest.TestCase):
             (directory / '.command.sh').write_text('#!/bin/bash\ntrue\n')
             (directory / '.command.run').write_text('DO_NOT_ARCHIVE_LAUNCHER\n')
             (directory / '.command.env').write_text('DO_NOT_ARCHIVE_ENVIRONMENT\n')
+        (multiqc / '.command.sh').write_text('#!/bin/bash\nmultiqc_fingerprint.py -f .\n')
         raw = fingerprint / 'sample__vs__control.plotFingerprint.raw.txt'
         raw.write_text('# sample\tcontrol\n1\t2\n')
         (multiqc / 'deeptools' / raw.name).symlink_to(raw)
@@ -304,6 +305,37 @@ class CaptureTests(unittest.TestCase):
         self.assertTrue(result['capture_complete'], result['issues'])
         self.assertEqual(result['cases'][0]['tasks'][1]['config_files'], ['multiqc_config.yml', 'extra.yaml'])
         self.assertEqual(sum(row['role'] == 'MULTIQC/config' for row in result['files']), 2)
+
+    def test_nextflow_eval_postamble_c_is_not_a_multiqc_config(self):
+        (self.multiqc / '.command.sh').write_text(
+            '#!/usr/bin/env bash -C -e -u -o pipefail\n'
+            'multiqc_fingerprint.py \\\n    -f \\\n     \\\n     \\\n    .\n\n'
+            '# capture process environment\nset +u\nset +e\ncd "$NXF_TASK_WORKDIR"\n\n'
+            'nxf_eval_cmd() {\n    {\n'
+            '        IFS=$\'\\n\' read -r -d \'\' "${1}";\n'
+            '        IFS=$\'\\n\' read -r -d \'\' "${2}";\n'
+            '        (IFS=$\'\\n\' read -r -d \'\' _ERRNO_; return ${_ERRNO_});\n'
+            '    } < <((printf \'\\0%s\\0%d\\0\' "${?}" "${?}" 1>&2) 2>&1)\n}\n\n'
+            'echo \'\' > .command.env\n#\n'
+            'nxf_eval_cmd STDOUT STDERR bash -c "multiqc --version | sed -e \\"s/multiqc, version //g\\""\n'
+            'status=$?\nif [ $status -eq 0 ]; then\n'
+            '  echo nxf_out_eval_2="$STDOUT" >> .command.env\n'
+            '  echo /nxf_out_eval_2/=exit:0 >> .command.env\nfi\n')
+        result, _ = self.collect()
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertEqual(result['cases'][0]['tasks'][1]['config_files'], ['multiqc_config.yml'])
+
+    def test_genuine_multiqc_c_option_still_rejects_unsupported_config(self):
+        (self.multiqc / '.command.sh').write_text('multiqc_fingerprint.py -f -c ../outside.yaml .\n')
+        result, _ = self.collect()
+        self.assertFalse(result['capture_complete'])
+        self.assertIn('unsupported_config_argument', [issue['reason'] for issue in result['issues']])
+
+    def test_multiple_multiqc_invocations_are_not_silently_merged(self):
+        (self.multiqc / '.command.sh').write_text('multiqc_fingerprint.py -f .\nmultiqc_fingerprint.py -f .\n')
+        result, _ = self.collect()
+        self.assertFalse(result['capture_complete'])
+        self.assertIn('unrecognized_config_arguments', [issue['reason'] for issue in result['issues']])
 
     def test_unknown_test_file_is_rejected(self):
         with self.assertRaises(ValueError):

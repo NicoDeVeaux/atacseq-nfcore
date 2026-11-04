@@ -215,7 +215,11 @@ def config_names(capture, command):
     if command is None:
         return names
     try:
-        args = shlex.split(command.decode('utf-8').replace('\\\n', ' '), comments=True)
+        lines = command.decode('utf-8').replace('\\\n', ' ').splitlines()
+        invocations = [line for line in lines if re.match(r'^\s*multiqc_fingerprint\.py(?:\s|$)', line)]
+        if len(invocations) != 1:
+            raise ValueError('Expected one MultiQC invocation')
+        args = shlex.split(invocations[0], comments=True)
         for index, arg in enumerate(args):
             if arg in {'--config', '-c'}:
                 value = args[index + 1]
