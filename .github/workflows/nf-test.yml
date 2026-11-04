@@ -148,8 +148,8 @@ jobs:
         with:
           version: ${{ matrix.NXF_VER }}
 
-      - name: Test controls evidence collector
-        run: python3 -m unittest discover --start-directory tests/ci --pattern 'test_capture_controls_evidence.py'
+      - name: Test report qualification and evidence helpers
+        run: python3 -m unittest discover --start-directory tests/ci --pattern 'test_*.py'
 
       - name: Check labels and fingerprint reports
         run: |

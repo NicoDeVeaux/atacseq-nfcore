@@ -52,6 +52,18 @@ def read_curves(output):
     return report, curves, keys[0]
 
 
+def validate_input_order(output, inputs):
+    report = json.loads((output / 'multiqc_data/multiqc_data.json').read_text())
+    sources = [sections['plotFingerprint'] for sections in report['report_data_sources'].values()
+               if 'plotFingerprint' in sections]
+    require(len(sources) == 1, 'Missing or ambiguous fingerprint parser sources')
+    observed = [str(Path(path).resolve()) for path in sources[0].values()]
+    requested = [str(path.resolve()) for path in inputs]
+    require(len(set(observed)) == len(observed), 'Repeated fingerprint parser source')
+    require(observed == requested, 'Actual fingerprint parser input order differs from requested order')
+    return observed
+
+
 def validate_table(path, expected):
     rows = list(csv.reader(path.open(), delimiter='\t'))
     require(rows and rows[0][0] == 'Sample', 'Missing fingerprint TSV header')
@@ -109,8 +121,10 @@ def validate_report(output, expected):
     key = validate_curves(output, expected)
     table = output / ('multiqc_data/' + key + '.txt')
     cells = validate_table(table, expected)
+    plots = list((output / 'multiqc_data').glob('mqc_deeptools_fingerprint_plot*.txt'))
+    require(len(plots) == 1, 'Missing or ambiguous fingerprint numeric plot export')
     return {'samples': len(expected), 'numeric_cells': cells, 'table_sha256': digest(table),
-            'table': str(table), 'curve_sha256': hashlib.sha256(
+            'table': str(table), 'plot_sha256': digest(plots[0]), 'curve_sha256': hashlib.sha256(
                 json.dumps(expected, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}
 
 
@@ -309,6 +323,7 @@ def main():
             (root / 'stderr.log').write_bytes(completed.stderr)
             result['executions'].append({'case': name, 'command': command, 'exit': completed.returncode})
             require(completed.returncode == 0, 'MultiQC execution failed: ' + name)
+            result['executions'][-1]['actual_parser_input_order'] = validate_input_order(output, inputs)
             return output
 
         expected = {}
@@ -328,6 +343,7 @@ def main():
             result['reverse'] = validate_report(reverse, expected)
             require(result['forward']['table_sha256'] == result['reverse']['table_sha256'], 'Reversed file order changes the numeric table')
             require(result['forward']['curve_sha256'] == result['reverse']['curve_sha256'], 'Reversed file order changes the curves')
+            require(result['forward']['plot_sha256'] == result['reverse']['plot_sha256'], 'Reversed file order changes numeric plot-export bytes')
             original_plots = {p.name: digest(p) for p in (original / 'multiqc_data').glob('mqc_deeptools_fingerprint_plot*.txt')}
             proposed_plots = {p.name: digest(p) for p in (forward / 'multiqc_data').glob('mqc_deeptools_fingerprint_plot*.txt')}
             require(original_plots and original_plots == proposed_plots, 'Wrapper changes original numerical plot-export bytes')
@@ -408,6 +424,8 @@ def main():
             reverse_values = validate_report(reverse, empty_expected)
             require(forward_values['table_sha256'] == reverse_values['table_sha256'],
                     'Distinct-control numeric table changes with input order')
+            require(forward_values['plot_sha256'] == reverse_values['plot_sha256'],
+                    'Distinct-control numeric plot changes with input order')
             result['empty_cleaning_distinct_controls'] = {
                 'metadata': empty_cleaning, 'forward': forward_values, 'reverse': reverse_values}
             mutant = run('empty_cleaning_unprotected', empty_inputs, False)
