@@ -24,7 +24,7 @@ class CapsuleTests(unittest.TestCase):
         self.result = self.root / 'RESULT.json'
         self.result.write_text('{"status": "FAIL"}\n')
         self.tap = self.root / 'test.tap'
-        self.tap.write_text('not ok 1 public fixture\n')
+        self.tap.write_text('not ok 1 Test pipeline: public fixture\n  output: DO_NOT_EXPORT_LOG_PAYLOAD\n')
         self.manifest()
 
     def manifest(self):
@@ -36,8 +36,11 @@ class CapsuleTests(unittest.TestCase):
         data, count = emitter.capsule(self.evidence, self.result, self.tap)
         with tarfile.open(fileobj=io.BytesIO(data)) as archive:
             self.assertEqual(set(archive.getnames()), {
-                'capture/manifest.json', 'capture/raw.txt', 'qualification/RESULT.json', 'test.tap'})
-            self.assertEqual(archive.extractfile('test.tap').read(), self.tap.read_bytes())
+                'capture/manifest.json', 'capture/raw.txt', 'qualification/RESULT.json', 'test-status.json'})
+            status = archive.extractfile('test-status.json').read()
+            self.assertNotIn(b'DO_NOT_EXPORT_LOG_PAYLOAD', status)
+            self.assertEqual(json.loads(status)['tests'], [{'number': 1,
+                'name': 'Test pipeline: public fixture', 'status': 'failed'}])
         self.assertEqual(count, 4)
 
     def test_tampered_capture_is_rejected(self):

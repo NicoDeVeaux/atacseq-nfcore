@@ -69,7 +69,7 @@ jobs:
         if: always() && steps.capture.outcome == 'success'
         run: |
           mkdir -p "$RUNNER_TEMP/reporting-qualification"
-          docker run --rm --entrypoint python \
+          docker run --rm --network none --entrypoint python \
             -v "$PWD:/repo:ro" \
             -v "$RUNNER_TEMP/reporting-evidence:/evidence:ro" \
             -v "$RUNNER_TEMP/reporting-qualification:/qualification" \
@@ -84,6 +84,7 @@ jobs:
             --evidence "$RUNNER_TEMP/reporting-evidence" \
             --result "$RUNNER_TEMP/reporting-qualification/RESULT.json" \
             --tap test.tap
+          docker image ls --digests --no-trunc
 
   fingerprint-contracts:
     if: github.repository == 'NicoDeVeaux/atacseq-nfcore' && github.event.repository.private == false
@@ -110,7 +111,7 @@ jobs:
           nextflow -C /dev/null run tests/regressions/fingerprint_labels.nf \
             --modules_config "$PWD/conf/modules.config" \
             --output_json "$RUNNER_TEMP/fingerprint-contracts/labels.json"
-          docker run --rm --entrypoint python \
+          docker run --rm --network none --entrypoint python \
             -v "$PWD:/repo:ro" -v "$RUNNER_TEMP/fingerprint-contracts:/evidence" \
             quay.io/biocontainers/multiqc@sha256:db913f47894a386040d76ae5f46b19149a71377f5107327d15ec89d3a1ec3f5f \
             /repo/tests/regressions/fingerprint_reports.py \

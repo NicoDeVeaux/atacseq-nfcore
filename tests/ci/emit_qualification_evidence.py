@@ -5,6 +5,7 @@ import base64
 import hashlib
 import io
 import json
+import re
 from pathlib import Path
 import tarfile
 import textwrap
@@ -28,7 +29,15 @@ def capsule(evidence, result, tap):
     if result.is_file():
         members['qualification/RESULT.json'] = result.read_bytes()
     if tap.is_file():
-        members['test.tap'] = tap.read_bytes()
+        data = tap.read_bytes()
+        statuses = []
+        for line in data.decode('utf-8').splitlines():
+            match = re.fullmatch(r'(not ok|ok)\s+([0-9]+)\s+(.+)', line)
+            if match:
+                statuses.append({'number': int(match[2]), 'name': match[3],
+                                 'status': 'failed' if match[1] == 'not ok' else 'passed'})
+        members['test-status.json'] = (json.dumps({'tap_sha256': hashlib.sha256(data).hexdigest(),
+            'tap_bytes': len(data), 'tests': statuses}, indent=2) + '\n').encode()
     if sum(map(len, members.values())) > 20 * 1024 * 1024:
         raise ValueError('Evidence exceeds uncompressed log budget')
     archive = io.BytesIO()
