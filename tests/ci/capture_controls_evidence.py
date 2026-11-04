@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retain a small allowlist of actual controls reporting inputs and outputs."""
+"""Retain allowlisted reporting evidence from known pipeline test cases."""
 import argparse
 import csv
 import hashlib
@@ -13,6 +13,7 @@ import sys
 
 SOURCE_FILES = (
     'assets/multiqc_config.yml', 'conf/modules.config', 'conf/test_controls.config',
+    'conf/test.config', 'tests/controls.nf.test',
     'tests/nextflow.config', 'nf-test.config', 'bin/multiqc_fingerprint.py',
     'modules/local/multiqc.nf', 'modules/nf-core/deeptools/plotfingerprint/main.nf',
 )
@@ -20,6 +21,10 @@ EXPORTS = ('deeptools_plot_fingerprint_counts_mlib_deeptools.txt',
            'mqc_deeptools_fingerprint_plot_1.txt')
 VERSIONS = 'nf_core_atacseq_software_mqc_versions.yml'
 TASKS = {'MERGED_LIBRARY_DEEPTOOLS_PLOTFINGERPRINT', 'MULTIQC'}
+TEST_FILES = {name: 'tests/' + name + '.nf.test' for name in (
+    'default', 'controls', 'bowtie2', 'chromap', 'star', 'skip_consensus_peaks', 'skip_trimming')}
+TAP_NAMES = {name: ('-profile test_controls' if name == 'controls' else '-profile test' if name == 'default' else name)
+             for name in TEST_FILES}
 HASH = re.compile(r'([0-9a-f]{2})/([0-9a-f]{6,30})')
 UNSAFE = re.compile(
     r'/wt/|/ephemeral/|(?:https?|docker|oras|s3|gs)://[^/\s]+@|'
@@ -90,6 +95,7 @@ class Capture:
         self.files.append({'path': str(relative), 'role': role, 'bytes': len(data), 'sha256': digest(data),
                            'was_symlink': path.is_symlink(),
                            'resolved_relative_path': str(resolved.relative_to(boundary)) if boundary else None})
+        return data
 
 
 def test_roots(workspace, workdir, home):
@@ -105,7 +111,31 @@ def test_roots(workspace, workdir, home):
     return unique
 
 
-def identity(capture, case, workspace):
+def selected_test_file(value):
+    if value is None:
+        return None
+    return next((path for path in TEST_FILES.values() if value in {path, Path(path).name}), None)
+
+
+def profile_case(profiles, parameters):
+    if set(profiles) - {'test', 'test_controls', 'docker', 'conda', 'singularity'}:
+        return None
+    if set(parameters) - {'outdir', 'aligner', 'skip_consensus_peaks', 'skip_trimming', 'seq_center'}:
+        return None
+    aligner = parameters.get('aligner', 'bwa')
+    skip_peaks = parameters.get('skip_consensus_peaks', False)
+    skip_trim = parameters.get('skip_trimming', False)
+    if not isinstance(aligner, str) or aligner not in {'bwa', 'bowtie2', 'chromap', 'star'} or type(skip_peaks) is not bool or type(skip_trim) is not bool:
+        return None
+    if 'test_controls' in profiles:
+        return 'controls' if aligner == 'bwa' and not skip_peaks and not skip_trim else None
+    if 'test' not in profiles or (skip_peaks and skip_trim) or (aligner != 'bwa' and (skip_peaks or skip_trim)):
+        return None
+    return ('skip_consensus_peaks' if skip_peaks else 'skip_trimming' if skip_trim else
+            'default' if aligner == 'bwa' else aligner)
+
+
+def identity(capture, case, workspace, include_non_controls=False):
     path = case / 'meta/nextflow.log'
     data = capture.read(path, [case], 'case_metadata')
     if data is None:
@@ -119,11 +149,38 @@ def identity(capture, case, workspace):
         if not all(re.fullmatch(r'[A-Za-z0-9_-]+', profile) and not UNSAFE.search(profile) for profile in profiles):
             raise ValueError('Invalid profiles')
         script = Path(args[args.index('run') + 1]).resolve()
-        if script != workspace / 'main.nf' or 'test_controls' not in profiles:
+        if script != workspace / 'main.nf' or not ({'test', 'test_controls'} & set(profiles)):
+            return None
+        if not include_non_controls and 'test_controls' not in profiles:
             return None
         version = re.search(r'N E X T F L O W\s+~\s+version\s+([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?)', text)
-        return {'profiles': profiles, 'nextflow_version': version[1] if version else None,
-                'metadata_sha256': digest(data)}
+        stub = any(arg.split('=', 1)[0] in {'-stub', '-stub-run'} for arg in args)
+        info = {'profiles': profiles, 'nextflow_version': version[1] if version else None,
+                'metadata_sha256': digest(data), 'stub_run': stub}
+        if stub:
+            return info
+        if not include_non_controls:
+            return {**info, 'test_case': 'controls', 'source_test_file': TEST_FILES['controls'],
+                    'selection_params': None, 'params_metadata_sha256': None}
+        parameter_path = Path(args[args.index('-params-file') + 1])
+        if not parameter_path.is_absolute():
+            parameter_path = case / parameter_path
+        if parameter_path.resolve() != case / 'meta/params.json':
+            return None
+        params = capture.read(case / 'meta/params.json', [case], 'case_parameters', 128 * 1024)
+        if params is None:
+            return None
+        parameters = json.loads(params)
+        if not isinstance(parameters, dict):
+            return None
+        name = profile_case(profiles, parameters)
+        if name is None:
+            return None
+        return {**info, 'test_case': name, 'source_test_file': TEST_FILES[name],
+                'selection_params': {'aligner': parameters.get('aligner', 'bwa'),
+                                     'skip_consensus_peaks': parameters.get('skip_consensus_peaks', False),
+                                     'skip_trimming': parameters.get('skip_trimming', False)},
+                'params_metadata_sha256': digest(params)}
     except (ValueError, StopIteration, IndexError, UnicodeError):
         capture.issue('case_metadata', 'unrecognized_launcher_metadata')
         return None
@@ -151,6 +208,29 @@ def raw_inputs(capture, directory, relative, case, role):
         if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.+-]{0,179}\.plotFingerprint\.raw\.txt', path.name) or UNSAFE.search(path.name):
             capture.issue(role, 'unsupported_raw_matrix_name'); continue
         capture.copy(path, relative / path.name, [case / 'work'], role)
+
+
+def config_names(capture, command):
+    names = ['multiqc_config.yml']
+    if command is None:
+        return names
+    try:
+        args = shlex.split(command.decode('utf-8').replace('\\\n', ' '), comments=True)
+        for index, arg in enumerate(args):
+            if arg in {'--config', '-c'}:
+                value = args[index + 1]
+            elif arg.startswith('--config='):
+                value = arg.split('=', 1)[1]
+            else:
+                continue
+            if not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.+-]{0,179}\.(?:ya?ml|json)', value) or UNSAFE.search(value):
+                capture.issue('MULTIQC/config', 'unsupported_config_argument')
+                continue
+            if value not in names:
+                names.append(value)
+    except (ValueError, IndexError, UnicodeError):
+        capture.issue('MULTIQC/config', 'unrecognized_config_arguments')
+    return names
 
 
 def task_evidence(capture, case, relative, workspace):
@@ -188,13 +268,14 @@ def task_evidence(capture, case, relative, workspace):
             if directory is None:
                 capture.issue(process + '/' + task_hash, 'missing_or_ambiguous_work_directory'); continue
             destination = relative / 'tasks' / (task_id + '-' + task_hash.replace('/', '-'))
-            capture.copy(directory / '.command.sh', destination / 'command.sh', [directory], process + '/command', 128 * 1024)
+            command = capture.copy(directory / '.command.sh', destination / 'command.sh', [directory], process + '/command', 128 * 1024)
             if process == 'MERGED_LIBRARY_DEEPTOOLS_PLOTFINGERPRINT':
                 raw_inputs(capture, directory, destination / 'raw', case, process + '/raw')
             else:
                 raw_inputs(capture, directory / 'deeptools', destination / 'staged_raw', case, 'MULTIQC/staged_raw')
-                config = directory / 'multiqc_config.yml'
-                capture.copy(config, destination / 'multiqc_config.yml', [directory, workspace / 'assets'], 'MULTIQC/config', 128 * 1024)
+                task['config_files'] = config_names(capture, command)
+                for name in task['config_files']:
+                    capture.copy(directory / name, destination / name, [directory, workspace / 'assets'], 'MULTIQC/config', 128 * 1024)
                 capture.copy(directory / VERSIONS, destination / VERSIONS,
                              [case / 'work', case / 'output/pipeline_info'], 'MULTIQC/observed_tool_versions', 128 * 1024)
                 data_dirs = sorted(p for p in directory.glob('*_data')
@@ -213,7 +294,8 @@ def task_evidence(capture, case, relative, workspace):
     return tasks
 
 
-def collect(workspace, workdir, output, source_commit, since=None, home=None, requested=None, nf_test_outcome='unknown'):
+def collect(workspace, workdir, output, source_commit, since=None, home=None, requested=None, nf_test_outcome='unknown',
+            include_non_controls=False, test_file=None):
     workspace = workspace.resolve()
     if output.is_symlink() or (output.exists() and (not output.is_dir() or any(output.iterdir()))):
         raise ValueError('Output must be a new or empty regular directory')
@@ -221,11 +303,21 @@ def collect(workspace, workdir, output, source_commit, since=None, home=None, re
     capture = Capture(output)
     if nf_test_outcome not in {'success', 'failure', 'cancelled', 'skipped', 'unknown'}:
         raise ValueError('Invalid nf-test outcome')
+    normalized_test_file = selected_test_file(test_file)
+    if test_file is not None and normalized_test_file is None:
+        raise ValueError('Unknown test file')
+    expected_case = next((name for name, path in TEST_FILES.items() if path == normalized_test_file), None)
+    if expected_case not in {None, 'controls'} and not include_non_controls:
+        raise ValueError('Non-controls capture requires opt-in')
+    requested = dict(requested or {})
+    if normalized_test_file:
+        requested['test_file'] = normalized_test_file
     report = {'schema': 'nf-core-atacseq-controls-evidence/v1', 'source_commit': source_commit,
               'collector_sha256': digest(Path(__file__).read_bytes()), 'python_version': sys.version.split()[0],
-              'requested': requested or {}, 'nf_test_step_outcome': nf_test_outcome,
-              'cases': [], 'files': capture.files, 'issues': capture.issues,
-              'scope': 'Only controls task commands, raw fingerprint matrices, selected configuration/source, observed tool versions and the two fingerprint exports. No environment, launch wrappers or raw logs.'}
+              'requested': requested, 'nf_test_step_outcome': nf_test_outcome,
+              'include_non_controls': include_non_controls, 'expected_test_case': expected_case,
+              'cases': [], 'excluded_cases': [], 'files': capture.files, 'issues': capture.issues,
+              'scope': ('Known pipeline profiles' if include_non_controls else 'Controls only') + ': task commands, raw fingerprint matrices, selected configuration/source, observed tool versions and the two fingerprint exports. No environment, launch wrappers or raw logs.'}
     seen = set()
     for root_index, root in enumerate(test_roots(workspace, workdir, home or Path.home())):
         if root.is_symlink() or not root.is_dir():
@@ -241,10 +333,18 @@ def collect(workspace, workdir, output, source_commit, since=None, home=None, re
             if since is not None and log.exists() and log.stat().st_mtime_ns < since:
                 continue
             start = len(capture.issues)
-            info = identity(capture, case, workspace)
+            info = identity(capture, case, workspace, include_non_controls)
             if info is None:
                 # Other nf-test cases share each shard; never copy their payloads.
                 del capture.issues[start:]
+                continue
+            if info['stub_run']:
+                report['excluded_cases'].append({'case_id': case.name, 'stub_run': True,
+                                                 'reason': 'stub_run_unexercised', **info})
+                del capture.issues[start:]
+                continue
+            if expected_case is not None and info['test_case'] != expected_case:
+                capture.issue('case_metadata', 'requested_test_case_mismatch')
                 continue
             key = str(root_index) + '-' + case.name
             if info['nextflow_version'] is None:
@@ -253,19 +353,37 @@ def collect(workspace, workdir, output, source_commit, since=None, home=None, re
             report['cases'].append({'case_id': case.name, 'root_kind': 'literal' if root_index == 0 else 'expanded_home',
                                     **info, 'tasks': tasks, 'complete': len(capture.issues) == start})
     if report['cases']:
-        for relative in SOURCE_FILES:
+        sources = set(SOURCE_FILES)
+        sources.update(case['source_test_file'] for case in report['cases'])
+        if include_non_controls:
+            sources.update(str(path.relative_to(workspace)) for path in (workspace / 'conf').glob('test*.config'))
+        for relative in sorted(sources):
             source = workspace / relative
             capture.copy(source, Path('source') / relative.replace('/', '__'), [workspace], 'source/' + relative, 128 * 1024)
     tap = capture.read(workspace / 'test.tap', [workspace], 'test_selection', 512 * 1024) if (workspace / 'test.tap').exists() else None
-    statuses = []
+    statuses = {name: [] for name in TEST_FILES}
     if tap:
         for line in tap.decode('utf-8', errors='replace').splitlines():
             match = re.fullmatch(r'(not ok|ok)\s+([0-9]+)\s+(.+)', line)
-            if match and '-profile test_controls' in match[3]:
-                statuses.append({'number': int(match[2]), 'status': 'failed' if match[1] == 'not ok' else 'passed'})
-    report['controls_tap'] = {'matched_tests': len(statuses), 'statuses': statuses}
-    if len(statuses) > len(report['cases']):
-        capture.issue('controls', 'selected_controls_case_not_identified')
+            if match:
+                title = match[3].rsplit(': ', 1)[-1]
+                name = next((name for name, expected in TAP_NAMES.items() if title == expected), None)
+                if name:
+                    statuses[name].append({'number': int(match[2]), 'status': 'failed' if match[1] == 'not ok' else 'passed'})
+    report['controls_tap'] = {'matched_tests': len(statuses['controls']), 'statuses': statuses['controls']}
+    selected = set(TEST_FILES) if include_non_controls else {'controls'}
+    if expected_case is not None:
+        selected = {expected_case}
+    report['profile_tap'] = {name: {'matched_tests': len(statuses[name]), 'statuses': statuses[name]} for name in sorted(selected)}
+    for name in selected:
+        if len(statuses[name]) > sum(case['test_case'] == name for case in report['cases']):
+            capture.issue(name, 'selected_controls_case_not_identified' if name == 'controls' else 'selected_profile_case_not_identified')
+        if include_non_controls and any(case['test_case'] == name for case in report['cases']) and not statuses[name]:
+            capture.issue(name, 'profile_tap_missing')
+    if include_non_controls and expected_case is not None and len(statuses[expected_case]) != 1:
+        capture.issue('test_selection', 'expected_real_test_tap_count')
+    if include_non_controls and not report['cases']:
+        capture.issue('profiles', 'non_stub_case_not_identified')
     report['complete'] = not capture.issues
     report['capture_complete'] = report['complete']
     report['status'] = ('complete' if report['complete'] else 'partial') if report['cases'] else ('not_applicable' if report['complete'] else 'partial')
@@ -285,6 +403,8 @@ def main():
     parser.add_argument('--nextflow', required=True)
     parser.add_argument('--nf-test', required=True)
     parser.add_argument('--nf-test-outcome', choices=['success', 'failure', 'cancelled', 'skipped', 'unknown'], default='unknown')
+    parser.add_argument('--include-non-controls', action='store_true', help='Capture the seven known real pipeline profiles; stubs remain excluded')
+    parser.add_argument('--test-file', help='Expected known tests/<case>.nf.test or its basename')
     args = parser.parse_args()
     try:
         if not re.fullmatch(r'[0-9a-f]{40}', args.source_commit):
@@ -296,7 +416,8 @@ def main():
             raise ValueError('Invalid requested identity')
         report = collect(args.workspace, args.workdir, args.output, args.source_commit,
                          since=args.since_file.stat().st_mtime_ns, requested=requested,
-                         nf_test_outcome=args.nf_test_outcome)
+                         nf_test_outcome=args.nf_test_outcome, include_non_controls=args.include_non_controls,
+                         test_file=args.test_file)
     except (OSError, ValueError, RuntimeError):
         # Do not print exception text: an OS/parser message can contain an unsafe input.
         if args.output.is_dir() and not args.output.is_symlink():

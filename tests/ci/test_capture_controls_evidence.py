@@ -25,7 +25,7 @@ class CaptureTests(unittest.TestCase):
             path.write_text('# fixture source\n')
         self.case, self.fingerprint, self.multiqc = self.make_case(self.workspace / '~' / 'tests', 'a' * 32)
 
-    def make_case(self, root, case_id):
+    def make_case(self, root, case_id, profiles='test,test_controls,docker', params=None, stub=False):
         case = root / case_id
         (case / 'meta').mkdir(parents=True)
         fingerprint = case / 'work/12' / ('abcdef' + '0' * 24)
@@ -45,8 +45,10 @@ class CaptureTests(unittest.TestCase):
         for name in collector.EXPORTS:
             # A broken blank export is valuable evidence too, not discarded by capture.
             (multiqc / 'multiqc_data' / name).write_text('Sample\t0.5\nsample\n')
+        (case / 'meta/params.json').write_text(json.dumps(params or {}) + '\n')
         (case / 'meta/nextflow.log').write_text(
-            f'DEBUG nextflow.cli.Launcher - $> nextflow run {self.workspace}/main.nf -profile test,test_controls,docker\n'
+            f'DEBUG nextflow.cli.Launcher - $> nextflow run {self.workspace}/main.nf -profile {profiles} '
+            f'-params-file {case}/meta/params.json' + (' -stub' if stub else '') + '\n'
             'INFO nextflow.cli.CmdRun - N E X T F L O W  ~  version 25.10.4\n')
         (case / 'meta/trace.csv').write_text(
             'task_id\thash\tname\tstatus\texit\tcontainer\n'
@@ -185,6 +187,127 @@ class CaptureTests(unittest.TestCase):
         result, output = self.collect()
         self.assertIsNone(result['cases'][0]['tasks'][1]['container_from_trace'])
         self.assertFalse(any(b'SYNTHETIC_CAPABILITY' in p.read_bytes() for p in output.rglob('*') if p.is_file()))
+
+    def test_opt_in_identifies_all_seven_cases_from_launch_and_selectors(self):
+        selectors = {'default': {}, 'controls': {}, 'bowtie2': {'aligner': 'bowtie2'},
+                     'chromap': {'aligner': 'chromap', 'seq_center': 'Broad Institute'},
+                     'star': {'aligner': 'star'}, 'skip_trimming': {'skip_trimming': True},
+                     'skip_consensus_peaks': {'skip_consensus_peaks': True}}
+        for index, (name, params) in enumerate(selectors.items(), 1):
+            if name == 'controls':
+                continue
+            self.make_case(self.workspace / '~' / 'tests', format(index, '032x'), 'test,docker', params)
+            source = self.workspace / collector.TEST_FILES[name]
+            source.write_text('// actual test source ' + name + '\n')
+        (self.workspace / 'test.tap').write_text(''.join(
+            f'ok {index} {collector.TAP_NAMES[name]}\n' for index, name in enumerate(selectors, 1)))
+        result, output = self.collect(include_non_controls=True)
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertEqual({case['test_case'] for case in result['cases']}, set(selectors))
+        for case in result['cases']:
+            self.assertFalse(case['stub_run'])
+            self.assertEqual(case['selection_params']['aligner'], selectors[case['test_case']].get('aligner', 'bwa'))
+            self.assertIsNotNone(case['params_metadata_sha256'])
+            role = 'source/' + collector.TEST_FILES[case['test_case']]
+            self.assertTrue(any(row['role'] == role for row in result['files']))
+        self.assertFalse(any(p.name in {'.command.env', '.command.run'} for p in output.rglob('*')))
+
+    def test_selected_file_cross_checks_metadata_and_tap(self):
+        log = self.case / 'meta/nextflow.log'
+        log.write_text(log.read_text().replace('test,test_controls,docker', 'test,docker'))
+        (self.case / 'meta/params.json').write_text('{"aligner":"star"}\n')
+        (self.workspace / 'tests/star.nf.test').write_text('// star source\n')
+        (self.workspace / 'test.tap').write_text(
+            'not ok 1 Test pipeline with STAR aligner: star\n'
+            'ok 2 Test pipeline with STAR aligner: star with stub\n')
+        result, _ = self.collect(include_non_controls=True, test_file='star.nf.test')
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertEqual(result['requested']['test_file'], 'tests/star.nf.test')
+        self.assertEqual(result['expected_test_case'], 'star')
+        self.assertEqual(result['profile_tap']['star']['matched_tests'], 1)
+        self.assertEqual(result['profile_tap']['star']['statuses'], [{'number': 1, 'status': 'failed'}])
+
+    def test_expected_real_test_requires_exactly_one_tap_binding(self):
+        (self.workspace / 'test.tap').write_text('ok 1 Test pipeline: -profile test_controls with stub\n')
+        result, _ = self.collect(include_non_controls=True, test_file='tests/controls.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertIn('expected_real_test_tap_count', [issue['reason'] for issue in result['issues']])
+
+    def test_duplicate_real_tap_binding_is_not_credited(self):
+        (self.workspace / 'test.tap').write_text(
+            'ok 1 Test pipeline: -profile test_controls\nok 2 Test pipeline: -profile test_controls\n')
+        result, _ = self.collect(include_non_controls=True, test_file='tests/controls.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertIn('expected_real_test_tap_count', [issue['reason'] for issue in result['issues']])
+
+    def test_requested_profile_mismatch_does_not_capture_payload(self):
+        result, _ = self.collect(include_non_controls=True, test_file='tests/chromap.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertFalse(result['cases'])
+        self.assertFalse(result['files'])
+        self.assertIn('requested_test_case_mismatch', [i['reason'] for i in result['issues']])
+
+    def test_stub_with_complete_looking_outputs_is_excluded_without_payload_read(self):
+        log = self.case / 'meta/nextflow.log'
+        log.write_text(log.read_text().replace('-profile test,test_controls,docker', '-stub-run -profile test,test_controls,docker'))
+        original = Path.open
+        def guarded(path, *args, **kwargs):
+            self.assertFalse(path.is_relative_to(self.case / 'work'), 'A stub payload was opened')
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'open', guarded):
+            result, _ = self.collect(include_non_controls=True, test_file='tests/controls.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertFalse(result['cases'])
+        self.assertFalse(result['files'])
+        self.assertTrue(result['excluded_cases'][0]['stub_run'])
+
+    def test_real_and_stub_in_one_test_file_only_credit_real_case(self):
+        self.make_case(self.workspace / '~' / 'tests', 'b' * 32, stub=True)
+        result, _ = self.collect(include_non_controls=True, test_file='tests/controls.nf.test')
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertEqual(len(result['cases']), 1)
+        self.assertEqual(len(result['excluded_cases']), 1)
+
+    def test_parameter_file_must_be_the_file_consumed_by_launcher(self):
+        log = self.case / 'meta/nextflow.log'
+        log.write_text(log.read_text().replace(str(self.case / 'meta/params.json'), str(self.workspace / 'other.json')))
+        result, _ = self.collect(include_non_controls=True, test_file='tests/controls.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertFalse(result['cases'])
+
+    def test_unknown_parameter_combination_is_not_misidentified_as_default(self):
+        log = self.case / 'meta/nextflow.log'
+        log.write_text(log.read_text().replace('test,test_controls,docker', 'test,docker'))
+        (self.case / 'meta/params.json').write_text('{"aligner":"star","skip_trimming":true}\n')
+        (self.workspace / 'test.tap').write_text('ok 1 star\n')
+        result, _ = self.collect(include_non_controls=True, test_file='tests/star.nf.test')
+        self.assertFalse(result['capture_complete'])
+        self.assertFalse(result['cases'])
+
+    def test_only_resolved_selectors_are_persisted_from_params(self):
+        params = {'outdir': 'DO_NOT_PERSIST_PRIVATE_OUTPUT', 'aligner': 'chromap', 'seq_center': 'DO_NOT_PERSIST_FREE_TEXT'}
+        log = self.case / 'meta/nextflow.log'
+        log.write_text(log.read_text().replace('test,test_controls,docker', 'test,docker'))
+        (self.case / 'meta/params.json').write_text(json.dumps(params))
+        (self.workspace / 'tests/chromap.nf.test').write_text('// chromap source\n')
+        (self.workspace / 'test.tap').write_text('ok 1 chromap\n')
+        result, output = self.collect(include_non_controls=True, test_file='tests/chromap.nf.test')
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertFalse(any(b'DO_NOT_PERSIST' in p.read_bytes() for p in output.rglob('*') if p.is_file()))
+
+    def test_staged_explicit_config_is_captured_with_shell_continuations(self):
+        extra = self.workspace / 'assets/extra.yaml'
+        extra.write_text('use_filename_as_sample_name: false\n')
+        (self.multiqc / extra.name).symlink_to(extra)
+        (self.multiqc / '.command.sh').write_text('multiqc_fingerprint.py \\\n -f \\\n --config extra.yaml \\\n .\n')
+        result, _ = self.collect()
+        self.assertTrue(result['capture_complete'], result['issues'])
+        self.assertEqual(result['cases'][0]['tasks'][1]['config_files'], ['multiqc_config.yml', 'extra.yaml'])
+        self.assertEqual(sum(row['role'] == 'MULTIQC/config' for row in result['files']), 2)
+
+    def test_unknown_test_file_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.collect(include_non_controls=True, test_file='../other.nf.test')
 
 
 if __name__ == '__main__':
