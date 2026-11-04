@@ -1,0 +1,26 @@
+{
+    "schema": "fingerprint-report-fixtures/v1",
+    "parser_image": "quay.io/biocontainers/multiqc@sha256:db913f47894a386040d76ae5f46b19149a71377f5107327d15ec89d3a1ec3f5f",
+    "multiqc_version": "1.13",
+    "parser_source_sha256": "8355bfe234ab844477c906f31833b059382b3c164c2d988c29cabf7aae14ac80",
+    "fixtures": [
+        {
+            "fixture": "comparison_a.plotFingerprint.raw.txt",
+            "sha256": "ac412ffa88af5e6d14871b0c8ea9e24bb65c0a2aeeda97e8669a71c644e1f5a1",
+            "raw_rows": 76,
+            "origin_sample": "OSMOTIC_STRESS_T0_PE_REP1",
+            "origin_raw_sha256": "59e43c634914507ef0d1054d7a3f506e47b29058c475c0e016a94194f3ceac2a",
+            "origin_source": "nf-core/atacseq@73155d2b59d37f521e3f00228d559031d2e7847f; retained genuine upstream-default CI fixture output",
+            "derivation": "Duplicate each original integer bin count into two columns. Headers are parser-test placeholders, not historical controls-CI labels."
+        },
+        {
+            "fixture": "comparison_b.plotFingerprint.raw.txt",
+            "sha256": "657c94369a09343f7badf98aef855be0228a6ef2a25044f52be6dda0746d3837",
+            "raw_rows": 67,
+            "origin_sample": "OSMOTIC_STRESS_T0_PE_REP2",
+            "origin_raw_sha256": "b2c72cc79ac41f553d4d14b073df294b33bbcb36f35191e1d3d29a67b54a31be",
+            "origin_source": "nf-core/atacseq@73155d2b59d37f521e3f00228d559031d2e7847f; retained genuine upstream-default CI fixture output",
+            "derivation": "Duplicate each original integer bin count into two columns. Headers are parser-test placeholders, not historical controls-CI labels."
+        }
+    ]
+}

@@ -133,8 +133,51 @@ jobs:
           name: pr-comment-fragment-${{ strategy.job-index }}
           path: pr-comment-fragment/
 
+  fingerprint-reports:
+    name: "Fingerprint reports | ${{ matrix.NXF_VER }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        NXF_VER: ["25.10.4", "26.10.5"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: nf-core/setup-nextflow@b4ec1bc7c16a94435159de94a05253542fddf6ef # v3
+        with:
+          version: ${{ matrix.NXF_VER }}
+
+      - name: Test report qualification and evidence helpers
+        run: python3 -m unittest discover --start-directory tests/ci --pattern 'test_*.py'
+
+      - name: Check labels and fingerprint reports
+        run: |
+          mkdir -p "$RUNNER_TEMP/fingerprint-report"
+          nextflow -C /dev/null run tests/regressions/fingerprint_labels.nf \
+            --modules_config "$PWD/conf/modules.config" \
+            --output_json "$RUNNER_TEMP/fingerprint-report/labels.json"
+          docker run --rm --entrypoint python \
+            -v "$PWD:/repo:ro" \
+            -v "$RUNNER_TEMP/fingerprint-report:/evidence" \
+            quay.io/biocontainers/multiqc@sha256:db913f47894a386040d76ae5f46b19149a71377f5107327d15ec89d3a1ec3f5f \
+            /repo/tests/regressions/fingerprint_reports.py \
+            --labels-json /evidence/labels.json --output /evidence/report
+
+      - name: Upload fingerprint regression receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: fingerprint-report-regression-${{ matrix.NXF_VER }}
+          path: |
+            ${{ runner.temp }}/fingerprint-report/labels.json
+            ${{ runner.temp }}/fingerprint-report/report/RESULT.json
+            ${{ runner.temp }}/fingerprint-report/report/*/*.log
+            ${{ runner.temp }}/fingerprint-report/report/*/output/multiqc_data/*fingerprint*.txt
+          retention-days: 7
+
   confirm-pass:
-    needs: [nf-test]
+    needs: [nf-test, fingerprint-reports]
     if: always()
     runs-on: # use self-hosted runners
       - runs-on=${{ github.run_id }}-confirm-pass

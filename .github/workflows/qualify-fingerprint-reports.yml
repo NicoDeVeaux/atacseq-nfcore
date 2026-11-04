@@ -1,0 +1,119 @@
+name: Qualify fingerprint reports (free fork runners)
+
+on:
+  push:
+    branches: [proposal/reproducible-fingerprint-reports]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fingerprint-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-nf-test:
+    if: github.repository == 'NicoDeVeaux/atacseq-nfcore' && github.event.repository.private == false
+    name: "${{ matrix.test }} | ${{ matrix.nextflow }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 14
+      matrix:
+        test: [default, controls, bowtie2, chromap, star, skip_trimming, skip_consensus_peaks]
+        nextflow: ["25.10.4", "26.10.5"]
+    env:
+      NFT_VER: "0.9.4"
+      NFT_WORKDIR: ${{ github.workspace }}/.nf-test
+      NXF_VERSION: ${{ matrix.nextflow }}
+      NXF_ANSI_LOG: false
+      NXF_JVM_ARGS: "-Xms256m -Xmx2g"
+      NFT_JAVA_ARGS: "-Xmx1g"
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: nf-core/setup-nextflow@b4ec1bc7c16a94435159de94a05253542fddf6ef # v3
+        with:
+          version: ${{ matrix.nextflow }}
+
+      - uses: nf-core/setup-nf-test@4069fbbaabe94c08faba4ad261bfa88225ba133f # v2
+        with:
+          version: ${{ env.NFT_VER }}
+          install-pdiff: true
+
+      - name: Run ordinary assertions without snapshot updates
+        id: tests
+        run: |
+          touch "$RUNNER_TEMP/start"
+          nf-test test "tests/${{ matrix.test }}.nf.test" \
+            --profile=+docker --ci --verbose --tap=test.tap
+
+      - name: Capture actual reporting inputs and exports
+        id: capture
+        if: always() && steps.tests.outcome != 'skipped'
+        env:
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          python3 tests/ci/capture_controls_evidence.py \
+            --workspace "$GITHUB_WORKSPACE" --workdir "$NFT_WORKDIR" \
+            --output "$RUNNER_TEMP/reporting-evidence" \
+            --source-commit "$(git rev-parse HEAD)" --since-file "$RUNNER_TEMP/start" \
+            --profile docker --shard 1/1 --nextflow "$NXF_VERSION" \
+            --nf-test "$NFT_VER" --nf-test-outcome "$TEST_OUTCOME" \
+            --include-non-controls --test-file "tests/${{ matrix.test }}.nf.test"
+
+      - name: Qualify raw-derived curves and numeric exports in both input orders
+        if: always() && steps.capture.outcome == 'success'
+        run: |
+          mkdir -p "$RUNNER_TEMP/reporting-qualification"
+          docker run --rm --network none --entrypoint python \
+            -v "$PWD:/repo:ro" \
+            -v "$RUNNER_TEMP/reporting-evidence:/evidence:ro" \
+            -v "$RUNNER_TEMP/reporting-qualification:/qualification" \
+            quay.io/biocontainers/multiqc@sha256:db913f47894a386040d76ae5f46b19149a71377f5107327d15ec89d3a1ec3f5f \
+            /repo/tests/ci/qualify_fingerprint_reports.py \
+            --evidence /evidence --output /qualification
+
+      - name: Emit compact public-data receipt without artifact storage
+        if: always()
+        run: |
+          python3 tests/ci/emit_qualification_evidence.py \
+            --evidence "$RUNNER_TEMP/reporting-evidence" \
+            --result "$RUNNER_TEMP/reporting-qualification/RESULT.json" \
+            --tap test.tap
+          docker image ls --digests --no-trunc
+
+  fingerprint-contracts:
+    if: github.repository == 'NicoDeVeaux/atacseq-nfcore' && github.event.repository.private == false
+    name: "Fingerprint contracts | ${{ matrix.nextflow }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        nextflow: ["25.10.4", "26.10.5"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: nf-core/setup-nextflow@b4ec1bc7c16a94435159de94a05253542fddf6ef # v3
+        with:
+          version: ${{ matrix.nextflow }}
+
+      - name: Test evidence collection
+        run: python3 -m unittest discover --start-directory tests/ci --pattern 'test_*.py'
+
+      - name: Exercise real labels and original-parser controls
+        run: |
+          mkdir -p "$RUNNER_TEMP/fingerprint-contracts"
+          nextflow -C /dev/null run tests/regressions/fingerprint_labels.nf \
+            --modules_config "$PWD/conf/modules.config" \
+            --output_json "$RUNNER_TEMP/fingerprint-contracts/labels.json"
+          docker run --rm --network none --entrypoint python \
+            -v "$PWD:/repo:ro" -v "$RUNNER_TEMP/fingerprint-contracts:/evidence" \
+            quay.io/biocontainers/multiqc@sha256:db913f47894a386040d76ae5f46b19149a71377f5107327d15ec89d3a1ec3f5f \
+            /repo/tests/regressions/fingerprint_reports.py \
+            --labels-json /evidence/labels.json --output /evidence/report
+          cat "$RUNNER_TEMP/fingerprint-contracts/report/RESULT.json"

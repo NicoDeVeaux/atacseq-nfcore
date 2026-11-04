@@ -1047,7 +1047,7 @@
                 "OSMOTIC_STRESS_T100_SE.mRp.clN.sorted.bam.idxstats:md5,7e45d1561601ad26823656ccb784dbc6",
                 "genome.fa:md5,4bad9f4b18056156a81f7f952abbe125",
                 "genome.fa.fai:md5,6f4c0ce5258e6948135ad006e1f9ee1b",
-                "deeptools_plot_fingerprint_counts_mlib_deeptools.txt:md5,15274f0c41d58f14d454fb0fb983e6fd",
+                "deeptools_plot_fingerprint_counts_mlib_deeptools.txt:md5,2301a84b27273f607d68b33e54629e1e",
                 "deeptools_plot_profile_mlib_deeptools.txt:md5,3c74002bc0bc18921860ef381f97ae77",
                 "mqc_cutadapt_filtered_reads_plot_1.txt:md5,b78f69173122f2cacf8121eaeb815382",
                 "mqc_cutadapt_trimmed_sequences_plot_3_Counts.txt:md5,157073209c492b89badba367b1c57d83",
