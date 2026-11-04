@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 100
     strategy:
       fail-fast: false
-      max-parallel: 7
+      max-parallel: 14
       matrix:
         test: [default, controls, bowtie2, chromap, star, skip_trimming, skip_consensus_peaks]
         nextflow: ["25.10.4", "26.10.5"]
