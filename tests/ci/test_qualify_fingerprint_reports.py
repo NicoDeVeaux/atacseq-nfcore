@@ -57,6 +57,13 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(q.context(command)['arguments'], ['--data-format', 'tsv', '-f'])
         with self.assertRaises(q.UnknownContext): q.context('multiqc_fingerprint.py --mystery x .')
 
+    def test_nextflow_eval_postamble_does_not_become_cli_configuration(self):
+        command = ('#!/usr/bin/env bash -C -e -u -o pipefail\n'
+                   'multiqc_fingerprint.py \\\n    -f \\\n    .\n'
+                   'nxf_eval_cmd() {\n    IFS=$\'\\n\' read -r -d \'\' "${1}";\n}\n'
+                   'nxf_eval_cmd STDOUT STDERR bash -c "multiqc --version | sed -e \\"s/multiqc, version //g\\""\n')
+        self.assertEqual(q.context(command), {'arguments': ['-f'], 'config_names': [], 'naming_options': {}})
+
     def test_duplicate_invocation_rejects(self):
         with self.assertRaises(q.EvidenceError): q.context('multiqc_fingerprint.py .\nmultiqc_fingerprint.py .')
 

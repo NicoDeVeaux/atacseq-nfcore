@@ -162,10 +162,11 @@ def original_oracle(plan):
         records.append({'name': source['name'], **hashes(path), 'labels': labels, 'rows': len(columns[0])})
     return {'expected': expected, 'raw': records, 'multiqc_version': multiqc.__version__,
             'original_parser_sha256': hashes(Path(sys.modules[plotFingerprintMixin.__module__].__file__))['sha256'],
-            'effective_data_format': config.data_format}
+            'config_data_format_before_cli': config.data_format}
 
 
 def replay(plan):
+    from multiqc import config
     from multiqc.modules.base_module import BaseMultiqcModule
     original = BaseMultiqcModule.find_log_files
     wanted = plan['order']; observed = []
@@ -183,7 +184,7 @@ def replay(plan):
     except SystemExit as error:
         require(error.code in {None, 0}, 'Repaired MultiQC replay failed')
     require(observed == wanted, 'Requested parser discovery order was not exercised')
-    return {'actual_raw_parser_order': observed, 'ordering_control': 'Test harness orders only unchanged raw records returned to the installed parser'}
+    return {'actual_raw_parser_order': observed, 'effective_cli_data_format': config.data_format, 'ordering_control': 'Test harness orders only unchanged raw records returned to the installed parser'}
 
 
 def worker(plan_path):
@@ -347,9 +348,11 @@ def main():
     parser.error('Both --evidence and --output are required') if not args.evidence or not args.output else None
     require(not args.output.is_symlink(), 'Output must not be a symlink')
     require(not args.output.exists() or args.output.is_dir() and not any(args.output.iterdir()), 'Output must be an empty directory')
-    args.output.mkdir(parents=True,exist_ok=True);args.output=args.output.resolve();evidence=args.evidence.resolve();result={'schema':'atacseq/native-fingerprint-qualification/v1','qualification_image_ref':IMAGE,'cases':[],'snapshots_modified':False}
+    args.output.mkdir(parents=True,exist_ok=True);args.output=args.output.resolve();evidence=args.evidence.resolve();result={'schema':'atacseq/native-fingerprint-qualification/v1','qualification_image_ref':IMAGE,'qualifier_source_sha256':hashes(Path(__file__))['sha256'],'cases':[],'snapshots_modified':False}
     try:
         manifest_path=evidence/'manifest.json';manifest=json.loads(manifest_path.read_text());result['capture_manifest']=hashes(manifest_path);result['nf_test_step_outcome']=manifest.get('nf_test_step_outcome','unknown')
+        result['capture_derivation']=manifest.get('posthoc_amendment')
+        result['qualification_kind']='POSTHOC_REPLAY_NOT_ORIGINAL_NATIVE_PASS' if result['capture_derivation'] else 'NATIVE_CAPTURE_REPLAY'
         require(manifest.get('capture_complete') is True, 'Global capture is incomplete')
         check_selection(manifest)
         require(re.fullmatch('[0-9a-f]{40}',manifest.get('source_commit','')), 'Missing actual source commit')
