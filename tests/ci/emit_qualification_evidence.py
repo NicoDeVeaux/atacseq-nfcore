@@ -18,7 +18,8 @@ def capsule(evidence, result, tap):
     for record in manifest.get('files', []):
         relative = Path(record['path'])
         source = evidence / relative
-        if relative.is_absolute() or '..' in relative.parts or source.is_symlink():
+        if (relative.is_absolute() or '..' in relative.parts or source.is_symlink()
+                or not source.resolve().is_relative_to(evidence.resolve())):
             raise ValueError('Unsafe evidence path')
         data = source.read_bytes()
         if hashlib.sha256(data).hexdigest() != record['sha256']:

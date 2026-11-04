@@ -51,6 +51,14 @@ class CapsuleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unsafe evidence text'):
             emitter.capsule(self.evidence, self.result, self.tap)
 
+    def test_symlink_parent_cannot_extend_capture(self):
+        (self.evidence / 'outside').symlink_to(self.root, target_is_directory=True)
+        data = self.result.read_bytes()
+        (self.evidence / 'manifest.json').write_text(json.dumps({'files': [{
+            'path': 'outside/RESULT.json', 'sha256': hashlib.sha256(data).hexdigest()}]}))
+        with self.assertRaisesRegex(ValueError, 'Unsafe evidence path'):
+            emitter.capsule(self.evidence, self.result, self.tap)
+
     def test_symlink_cannot_extend_capture(self):
         self.source.unlink()
         self.source.symlink_to(self.tap)

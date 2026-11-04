@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 100
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 7
       matrix:
         test: [default, controls, bowtie2, chromap, star, skip_trimming, skip_consensus_peaks]
         nextflow: ["25.10.4", "26.10.5"]
@@ -29,6 +29,8 @@ jobs:
       NFT_WORKDIR: ${{ github.workspace }}/.nf-test
       NXF_VERSION: ${{ matrix.nextflow }}
       NXF_ANSI_LOG: false
+      NXF_JVM_ARGS: "-Xms256m -Xmx2g"
+      NFT_JAVA_ARGS: "-Xmx1g"
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -61,7 +63,7 @@ jobs:
             --source-commit "$(git rev-parse HEAD)" --since-file "$RUNNER_TEMP/start" \
             --profile docker --shard 1/1 --nextflow "$NXF_VERSION" \
             --nf-test "$NFT_VER" --nf-test-outcome "$TEST_OUTCOME" \
-            --include-non-controls
+            --include-non-controls --test-file "tests/${{ matrix.test }}.nf.test"
 
       - name: Qualify raw-derived curves and numeric exports in both input orders
         if: always() && steps.capture.outcome == 'success'
