@@ -1,0 +1,15 @@
+[
+  {
+    "status": "ERROR",
+    "probes": 12,
+    "matched": 8,
+    "raw_trial_sha256": "a65875272612bf1d96a2c9b971ea7d6b90c7fb9250738fc8e4c8bba34b53020b",
+    "cause": "Duplicate selector harness lacked the production parameter defaults on Nextflow25.10.4. Preserved as ERROR; corrected complete rerun follows."
+  },
+  {
+    "status": "PASS",
+    "probes": 12,
+    "matched": 12,
+    "raw_trial_sha256": "76f0ea661b9280a81aa62516c3b93c1870dd8ea681c062cf592e95aff700b62c"
+  }
+]

@@ -1,0 +1,75 @@
+{
+  "schema": "atacseq-scientific-poc-targets/v1",
+  "base": "73155d2b59d37f521e3f00228d559031d2e7847f",
+  "targets": [
+    {
+      "pr": 474,
+      "url": "https://github.com/nf-core/atacseq/pull/474",
+      "head": "f2873418faf719756d89022a6e9d2e4315c56a89",
+      "branch": "fix/pr448-module-regressions",
+      "title": "fix: restore module behavior after #448",
+      "expected_scope": "trimming-and-library-identity-repair",
+      "changed_files": [
+        ".github/workflows/nf-test.yml",
+        "CHANGELOG.md",
+        "conf/modules.config",
+        "modules.json",
+        "modules/nf-core/gffread/environment.yml",
+        "modules/nf-core/gffread/gffread.diff",
+        "modules/nf-core/gffread/main.nf",
+        "modules/nf-core/gffread/tests/main.nf.test.snap",
+        "modules/nf-core/preseq/lcextrap/main.nf",
+        "modules/nf-core/preseq/lcextrap/preseq-lcextrap.diff",
+        "modules/nf-core/trimgalore/environment.yml",
+        "modules/nf-core/trimgalore/main.nf",
+        "modules/nf-core/trimgalore/tests/main.nf.test.snap",
+        "tests/bowtie2.nf.test.snap",
+        "tests/chromap.nf.test.snap",
+        "tests/controls.nf.test.snap",
+        "tests/default.nf.test.snap",
+        "tests/regressions/README.md",
+        "tests/regressions/preseq_retry.py",
+        "tests/skip_consensus_peaks.nf.test.snap",
+        "tests/star.nf.test.snap"
+      ]
+    },
+    {
+      "pr": 476,
+      "url": "https://github.com/nf-core/atacseq/pull/476",
+      "head": "9a255c667bed26eec6759c94a1f8a01e281f623d",
+      "branch": "fix/consensus-saf-coordinates",
+      "title": "fix: convert consensus BED starts to one-based SAF coordinates",
+      "expected_scope": "intentional-SAF-coordinate-and-count-change",
+      "changed_files": [
+        "CHANGELOG.md",
+        "modules/local/macs3_consensus.nf",
+        "tests/bowtie2.nf.test.snap",
+        "tests/chromap.nf.test.snap",
+        "tests/controls.nf.test.snap",
+        "tests/default.nf.test",
+        "tests/default.nf.test.snap",
+        "tests/skip_trimming.nf.test.snap",
+        "tests/star.nf.test.snap"
+      ]
+    },
+    {
+      "pr": 469,
+      "url": "https://github.com/nf-core/atacseq/pull/469",
+      "head": "740a8ac44e10c4ee0fc50f944c0191f0a247b7e1",
+      "branch": "fix-versions-yaml-workflow-block",
+      "title": "Restore the Workflow block in the software versions YAML",
+      "expected_scope": "workflow-version-provenance-restoration",
+      "changed_files": [
+        "CHANGELOG.md",
+        "tests/bowtie2.nf.test.snap",
+        "tests/chromap.nf.test.snap",
+        "tests/controls.nf.test.snap",
+        "tests/default.nf.test.snap",
+        "tests/skip_consensus_peaks.nf.test.snap",
+        "tests/skip_trimming.nf.test.snap",
+        "tests/star.nf.test.snap",
+        "workflows/atacseq.nf"
+      ]
+    }
+  ]
+}

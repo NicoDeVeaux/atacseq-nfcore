@@ -1,0 +1,127 @@
+{
+  "schema": "atacseq-scientific-poc-publication/v1",
+  "files": [
+    {
+      "path": "TRIAL.json",
+      "original_bytes": 1072738,
+      "original_sha256": "76f0ea661b9280a81aa62516c3b93c1870dd8ea681c062cf592e95aff700b62c",
+      "public_bytes": 35702,
+      "public_sha256": "9b0ee2776e5776065a749159823efef884839c42364162e0981f1ff93ab47b80"
+    },
+    {
+      "path": "trimming_before/RESULT.json",
+      "original_bytes": 110422,
+      "original_sha256": "c2c0c482911aeca0e28c2afe31960960b8d68064213552dc6b3135d8c741583c",
+      "public_bytes": 108268,
+      "public_sha256": "26a475b1ca9d72e7c7b77375caaffdaf159235333dd81e7d5cbd08b773cab450"
+    },
+    {
+      "path": "trimming_after/RESULT.json",
+      "original_bytes": 104702,
+      "original_sha256": "ed963eda537958f91f1190ce9c525e8aa53d80a29223e71ddd4c0416cdc8a308",
+      "public_bytes": 102548,
+      "public_sha256": "622ef0040c20fa7f7626f45e91bb525990ef60f4ac2da1bd5cbc0f764cf96ed3"
+    },
+    {
+      "path": "duplicates_before/RESULT.json",
+      "original_bytes": 28313,
+      "original_sha256": "3b3cdfea69aac37fbc6af8d36e76accedd033ef514a8437ba8ff8b54c99c88e1",
+      "public_bytes": 27668,
+      "public_sha256": "f95be0ebb23de389f2b38248bb428d19a7a5c6aab16fc36e5517d55cf4d7843e"
+    },
+    {
+      "path": "duplicates_after/RESULT.json",
+      "original_bytes": 28255,
+      "original_sha256": "ec03280f829f74ff173476b0034bc0cff6ba8e877bf1fc7224cf8a74b4deaf69",
+      "public_bytes": 27610,
+      "public_sha256": "081ce3ef92c35e798048e4a1cb9639da9bd63e4a8dba324e44df4f14adab8cf8"
+    },
+    {
+      "path": "provenance_before/RESULT.json",
+      "original_bytes": 5964,
+      "original_sha256": "ceb21ecceede80ba1a6c762cf30d026b3ef1bee2561b117a060b3952171cc2d1",
+      "public_bytes": 5663,
+      "public_sha256": "8438615db58bd522a124414cd11b3f4684112c9477b499902b531ebdbb4550fc"
+    },
+    {
+      "path": "provenance_after/RESULT.json",
+      "original_bytes": 6052,
+      "original_sha256": "09ef15c436f8a37c22614adf2fd973abd47ac39fffd8ca36f479037f79ce84d0",
+      "public_bytes": 5751,
+      "public_sha256": "3e532e43861bb66df9aca2643ca810100ccef433a6b019b8a1b5c4d3874cc5c2"
+    },
+    {
+      "path": "saf_before/RESULT.json",
+      "original_bytes": 12591,
+      "original_sha256": "9a67f113b421382daddd8079ee28d355cc994daaa38bbccbc75b4fd1dab41b21",
+      "public_bytes": 12290,
+      "public_sha256": "673bfb00e6c7a94daaef9ed371b36975c7afb2eafd8124c9a4c8da50b0133709"
+    },
+    {
+      "path": "saf_after/RESULT.json",
+      "original_bytes": 12583,
+      "original_sha256": "aa33b22e6619ef98f3344a38669b0e6da584bb88d75f6113029d33208e745763",
+      "public_bytes": 12282,
+      "public_sha256": "452724139ae53e99e1a2ee69e374a821127b2c6a86dccefcf8e78e4af73576d1"
+    },
+    {
+      "path": "duplicates_wrong_library/RESULT.json",
+      "original_bytes": 28394,
+      "original_sha256": "7933c3859c130151de95122b2e5b3eff49674ae6f6928364595c2d760dd4fc37",
+      "public_bytes": 27749,
+      "public_sha256": "f0764e8310f6be305a28f10639c140dc742f38a405fefc7853499960b53f3d29"
+    },
+    {
+      "path": "trimming_missing_option/RESULT.json",
+      "original_bytes": 44878,
+      "original_sha256": "d18f13aa0acdfc3fc16b978f6183275f9868e9fc292c9311bfccfd29eaa3bfd8",
+      "public_bytes": 44102,
+      "public_sha256": "583aa1ad5c2de982f841c061584ce288081c1f5e93168a559951bb8b0c52d62e"
+    },
+    {
+      "path": "trimming_after_snapshot_replacement/RESULT.json",
+      "original_bytes": 47893,
+      "original_sha256": "5fcdd242f22ac143cc10af8c0b8fe1bedea112f3e293abf80e193487dc258f62",
+      "public_bytes": 47117,
+      "public_sha256": "2a2dc8df6c85ea820888221b03f578df2da8836e50b716a6dfc9295981adcff4"
+    },
+    {
+      "path": "duplicates_after_snapshot_replacement/RESULT.json",
+      "original_bytes": 28614,
+      "original_sha256": "9d325520b6c029493160308247f804c3c5b7ea75515286bc1f575ec3dcdf59e5",
+      "public_bytes": 27969,
+      "public_sha256": "659dd5f170d244f57eca1d89740f7711952ff8b8a1ef0e5253a6c97f4a88c565"
+    },
+    {
+      "path": "report-474/REPORT.json",
+      "original_bytes": 354179,
+      "original_sha256": "b5fad0a76a2c18ea969bdafacb9fd74a546be8f8ca0f8f32c08c939c3216f141",
+      "public_bytes": 354179,
+      "public_sha256": "b5fad0a76a2c18ea969bdafacb9fd74a546be8f8ca0f8f32c08c939c3216f141"
+    },
+    {
+      "path": "report-476/REPORT.json",
+      "original_bytes": 61791,
+      "original_sha256": "2bc17c58688ed966220f59227f0a7b5f2bd060a3a479193b86fb5c16800edefb",
+      "public_bytes": 61791,
+      "public_sha256": "2bc17c58688ed966220f59227f0a7b5f2bd060a3a479193b86fb5c16800edefb"
+    },
+    {
+      "path": "report-469/REPORT.json",
+      "original_bytes": 10107,
+      "original_sha256": "5669e7402d5b3c280401d7564d2507375dd81169b73a7cad439b2845385a358e",
+      "public_bytes": 10107,
+      "public_sha256": "5669e7402d5b3c280401d7564d2507375dd81169b73a7cad439b2845385a358e"
+    }
+  ],
+  "transforms": [
+    "Replace local trial/home/tmp prefixes with placeholders; preserve original receipt SHA-256.",
+    "Bound missing/extra feature example arrays to 24, retaining totals and explicit truncation flags.",
+    "Historical source bridges remain declared, not newly executed scientific workflows."
+  ],
+  "archive": {
+    "path": "receipts.tar.gz",
+    "bytes": 81270,
+    "sha256": "2e9fca74fb6c1f2c4c423b07d45de4c2ac6160543327f0d11acd5e565ed6d9ec"
+  }
+}

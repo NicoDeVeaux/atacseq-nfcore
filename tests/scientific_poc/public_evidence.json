@@ -1,0 +1,56 @@
+{
+  "schema": "atacseq-scientific-poc-public-evidence/v1",
+  "archive": {
+    "url": "https://raw.githubusercontent.com/NicoDeVeaux/atacseq-modules-update-verification/72dc3a04b6d63cc76ef07864b490eac1763b1183/verification/reviews/2026-11-03-count-saf-data/count-saf-public.tar.gz",
+    "sha256": "ae975cd3bba83f7ab8ff41d4b603eb744d5aa1d164578152c79b748933b0e66e",
+    "bytes": 14794307
+  },
+  "before": {
+    "url": "https://raw.githubusercontent.com/NicoDeVeaux/atacseq-modules-update-verification/72dc3a04b6d63cc76ef07864b490eac1763b1183/verification/counts/pr448/consensus_peaks.mLb.clN.featureCounts.tsv",
+    "sha256": "74a78c98e9529706d4031200cc16feb3f933307844152055e709b50a99d7a0eb",
+    "bytes": 4065870
+  },
+  "archived": {
+    "url": "https://raw.githubusercontent.com/NicoDeVeaux/atacseq-modules-update-verification/72dc3a04b6d63cc76ef07864b490eac1763b1183/verification/counts/dev/consensus_peaks.mLb.clN.featureCounts.txt",
+    "sha256": "cbdf490e3112781bd0e31d561e14c00f03c3052991cc1a1e2f8870327725eb62",
+    "bytes": 4063680
+  },
+  "members": {
+    "fixed": {
+      "member": "count-saf-public/files/post-split/consensus_peaks.mLb.clN.featureCounts.tsv",
+      "sha256": "7623ea076dfe8aba9100e2b76c52735f9dba4e3f6852dc17cd36fb101b617bef",
+      "bytes": 4063680
+    },
+    "saf_corrected": {
+      "member": "count-saf-public/files/full-count/corrected/consensus_peaks.mLb.clN.featureCounts.tsv",
+      "sha256": "b88e9057b655db2cdad7204ff32db2bfc4e60af6b87831ff85dbc932fe365583",
+      "bytes": 4063600
+    }
+  },
+  "scopes": {
+    "469": "Fresh minimal production-expression probe; full pipeline unexercised.",
+    "474": "Historical full matched BWA pipelines at upstream731 versus a9b588, plus a separate count-only replay at requested f28734. No full f28734 pipeline rerun claimed.",
+    "476": "Actual full-cohort count-only SAF intervention on four preserved scientific BAMs; not a full standalone9a255c workflow."
+  },
+  "before_source_receipt": {
+    "url": "https://raw.githubusercontent.com/NicoDeVeaux/atacseq-modules-update-verification/72dc3a04b6d63cc76ef07864b490eac1763b1183/verification/reviews/2026-10-29-pr448/hiv/results/historical-comparison.json",
+    "sha256": "2cad2ac873e744081b26e6b273b0c5cdc36c5ae3d8a5d413fe2691aa836881a2",
+    "bytes": 6840250,
+    "statement": "Published historical-comparison artifact manifest explicitly binds the retained pr448 table SHA to actual unfixed731 output; its directory label alone is not used as a source claim."
+  },
+  "post_split_receipt": "https://raw.githubusercontent.com/NicoDeVeaux/atacseq-modules-update-verification/72dc3a04b6d63cc76ef07864b490eac1763b1183/verification/reviews/2026-11-03-pr474-saf-split/RESULT.json",
+  "SAF_source_bridge": {
+    "combined": {
+      "bytes": 2543,
+      "sha256": "33b326d86b90f82e93d4fc2fae8ff48b5a4747583a9f670f38bbb02ad4a746c5"
+    },
+    "standalone": {
+      "bytes": 2543,
+      "sha256": "33b326d86b90f82e93d4fc2fae8ff48b5a4747583a9f670f38bbb02ad4a746c5"
+    },
+    "476_final": {
+      "bytes": 2543,
+      "sha256": "33b326d86b90f82e93d4fc2fae8ff48b5a4747583a9f670f38bbb02ad4a746c5"
+    }
+  }
+}

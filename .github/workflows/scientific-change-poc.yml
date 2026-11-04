@@ -1,0 +1,75 @@
+name: Scientific change PoC (fork only)
+
+on:
+  push:
+    branches: [poc/scientific-change-guards]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scientific-change-poc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scientific-change-trial:
+    if: github.repository == 'NicoDeVeaux/atacseq-nfcore' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - uses: nf-core/setup-nextflow@b4ec1bc7c16a94435159de94a05253542fddf6ef # v3
+        with:
+          version: "25.10.4"
+
+      - name: Install the bounded YAML reader
+        run: |
+          python3 -m venv "$RUNNER_TEMP/scientific-python"
+          "$RUNNER_TEMP/scientific-python/bin/python" -m pip install PyYAML==6.0.3
+          echo "$RUNNER_TEMP/scientific-python/bin" >> "$GITHUB_PATH"
+
+      - name: Test report and guard mutation controls
+        run: python3 -B -m unittest discover --start-directory tests/scientific_poc --pattern 'test_*.py'
+
+      - name: Fetch the frozen source revisions
+        run: |
+          python3 -B - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          targets = json.loads(Path("tests/scientific_poc/targets.json").read_text())
+          for ref in [targets["base"]] + [row["head"] for row in targets["targets"]]:
+              subprocess.run(["git", "fetch", "origin", ref], check=True)
+          PY
+
+      - name: Prepare the declared small-tool images
+        run: python3 -B tests/scientific_poc/prepare_images.py --repo . --docker-context default
+
+      - name: Reproduce the expected broken and repaired controls
+        run: |
+          python3 -B tests/scientific_poc/run_trial.py \
+            --repo . --output "$RUNNER_TEMP/scientific-poc" \
+            --docker-context default --nextflow-version 25.10.4
+
+      - name: Publish the trial summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/scientific-poc/TRIAL.md" ]; then
+            cat "$RUNNER_TEMP/scientific-poc/TRIAL.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain bounded scientific receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scientific-change-poc
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/scientific-poc/TRIAL.json
+            ${{ runner.temp }}/scientific-poc/TRIAL.md
+            ${{ runner.temp }}/scientific-poc/*/RESULT.json
+            ${{ runner.temp }}/scientific-poc/report-*/REPORT.json
+            ${{ runner.temp }}/scientific-poc/report-*/REPORT.md
